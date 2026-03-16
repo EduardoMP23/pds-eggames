@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sala de Espera — Board Games</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/lobby.css">
+</head>
+<body>
+  <!-- Name modal for guests -->
+  <div id="nameModal" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h2>Qual é o seu nome?</h2>
+      <input type="text" id="guestName" placeholder="Seu nome..." maxlength="20" autocomplete="off">
+      <button class="btn" onclick="joinWithName()">Entrar na Sala</button>
+    </div>
+  </div>
+
+  <div class="lobby-container">
+    <div class="lobby-header">
+      <a href="/" class="back-link">← Início</a>
+      <div class="game-badge" id="gameBadge">—</div>
+    </div>
+
+    <div class="lobby-main">
+      <div class="players-panel">
+        <h2>Jogadores <span id="playerCount">(0)</span></h2>
+        <ul class="player-list" id="playerList"></ul>
+        <div id="waitingMsg" class="waiting-msg"></div>
+      </div>
+
+      <div class="invite-panel">
+        <h2>Convidar Amigos</h2>
+        <p class="invite-label">Compartilhe este link:</p>
+        <div class="invite-link-box">
+          <input type="text" id="inviteLink" readonly>
+          <button class="btn-copy" onclick="copyLink()">Copiar</button>
+        </div>
+        <div id="copyMsg" style="font-size:0.8rem;color:var(--accent);height:1.2em"></div>
+
+        <div id="hostControls" style="display:none; margin-top:2rem">
+          <button class="btn btn-start" id="startBtn" onclick="startGame()">Iniciar Jogo</button>
+          <p id="startMsg" class="start-msg"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-panel">
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Mensagem..." maxlength="200" onkeydown="chatKeyDown(event)">
+        <button class="btn" onclick="sendChat()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/socket-client.js"></script>
+  <script src="/js/pages/lobby.js"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo — Board Games</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link id="gameCss" rel="stylesheet" href="">
+</head>
+<body>
+  <div id="loadingScreen" style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:1.5rem;color:var(--muted)">
+    Carregando jogo...
+  </div>
+
+  <div id="gameContainer" style="display:none">
+    <div class="game-topbar">
+      <a href="/" class="back-link">← Sair</a>
+      <span id="gameTitle" class="game-title"></span>
+      <span id="turnIndicator" class="turn-indicator"></span>
+    </div>
+
+    <div class="game-layout">
+      <div id="gameArea" class="game-area"></div>
+
+      <aside class="game-sidebar">
+        <div id="playersPanel" class="players-panel-game"></div>
+
+        <div class="event-log-panel">
+          <h3>Log</h3>
+          <div id="eventLog" class="event-log"></div>
+        </div>
+
+        <div class="chat-panel-game">
+          <div class="chat-messages" id="chatMessages"></div>
+          <div class="chat-input-row">
+            <input type="text" id="chatInput" placeholder="Chat..." maxlength="200" onkeydown="chatKeyDown(event)">
+            <button class="btn-sm" onclick="sendChat()">→</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="gameOverModal" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h2 id="gameOverTitle">Fim de Jogo!</h2>
+      <p id="gameOverMsg"></p>
+      <div style="display:flex;gap:1rem;justify-content:center;margin-top:1.5rem">
+        <a href="/" class="btn">Início</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/socket-client.js"></script>
+  <script src="/js/pages/game.js"></script>
+</body>
+</html>

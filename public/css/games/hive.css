@@ -1,0 +1,63 @@
+.hive-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  align-items: center;
+}
+
+.hive-info-bar {
+  display: flex;
+  gap: 2rem;
+  font-size: 0.9rem;
+}
+.hive-info-bar .player-label { color: var(--muted); }
+.hive-info-bar .player-label.active { color: var(--text); font-weight: 700; }
+
+.hive-board-svg {
+  cursor: pointer;
+  display: block;
+  max-width: 100%;
+}
+
+.hive-hand-panel {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.hive-hand {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+.hive-hand h3 { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; margin-bottom: 0.5rem; }
+.hive-hand .pieces { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.hive-piece-btn {
+  background: var(--bg3);
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+  transition: border-color 0.15s;
+}
+.hive-piece-btn:hover { border-color: var(--accent); }
+.hive-piece-btn.selected { border-color: #7fc97f; background: #152a15; }
+.hive-piece-btn.white-piece { border-color: #e0d8c8; }
+.hive-piece-btn.black-piece { border-color: #555; }
+
+/* SVG hex styles */
+.hex-cell { transition: opacity 0.15s; }
+.hex-cell:hover { opacity: 0.8; }
+.hex-white { fill: #f0e8d0; stroke: #8a7a60; stroke-width: 2; }
+.hex-black { fill: #333; stroke: #777; stroke-width: 2; }
+.hex-empty { fill: rgba(255,255,255,0.04); stroke: rgba(255,255,255,0.1); stroke-width: 1; }
+.hex-legal { fill: rgba(127,201,127,0.25); stroke: #7fc97f; stroke-width: 2; cursor: pointer; }
+.hex-selected { fill: rgba(127,201,127,0.4); stroke: #7fc97f; stroke-width: 3; }
+.hex-text { font-size: 14px; font-family: sans-serif; pointer-events: none; text-anchor: middle; dominant-baseline: central; }
