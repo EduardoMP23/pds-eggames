@@ -1,24 +1,16 @@
 (function () {
   const roomId = window.location.pathname.split('/').pop();
-  let myPlayerId = sessionStorage.getItem('playerId');
+  let myPlayerId  = sessionStorage.getItem('playerId');
   let myPlayerName = sessionStorage.getItem('playerName');
-  let isHost = false;
+  let isHost  = false;
   let roomData = null;
 
   const socket = io();
 
-  const gameLabels = {
-    chess: '♟️ Xadrez',
-    explodingKittens: '💣 Exploding Kittens',
-    coup: '👑 Coup',
-    hive: '🐝 Hive'
-  };
-
   // Set invite link
-  const inviteLinkEl = document.getElementById('inviteLink');
-  inviteLinkEl.value = window.location.href;
+  document.getElementById('inviteLink').value = window.location.href;
 
-  // Check if guest (no name saved)
+  // If guest (no name saved), show the name modal
   if (!myPlayerName) {
     document.getElementById('nameModal').style.display = 'flex';
   } else {
@@ -42,26 +34,22 @@
     socket.emit('room:join', { roomId, playerName: name });
   }
 
-  socket.on('room:joined', (data) => {
+  // ── Socket events ───────────────────────────────────────────────────────────
+
+  socket.on('room:joined', data => {
     myPlayerId = data.playerId;
     sessionStorage.setItem('playerId', data.playerId);
-    isHost = data.isHost;
+    isHost   = data.isHost;
     roomData = data;
 
-    document.getElementById('gameBadge').textContent = gameLabels[data.gameId] || data.gameId;
-    document.title = `${gameLabels[data.gameId] || data.gameId} — Sala de Espera`;
+    document.getElementById('gameBadge').textContent = '🐝 Hive';
+    document.title = 'Hive — Sala de Espera';
 
     renderPlayers(data.players, data.isHost ? data.players[0]?.playerId : null);
-
-    if (data.isHost) {
-      document.getElementById('hostControls').style.display = '';
-    }
-
+    if (data.isHost) document.getElementById('hostControls').style.display = '';
     updateWaitingMsg(data.players, data.minPlayers);
 
-    if (data.status === 'playing') {
-      window.location.href = `/game/${roomId}`;
-    }
+    if (data.status === 'playing') window.location.href = `/game/${roomId}`;
   });
 
   socket.on('room:join-error', ({ message }) => {
@@ -89,16 +77,18 @@
 
   socket.on('chat:message', ({ playerName, text }) => {
     const msgs = document.getElementById('chatMessages');
-    const div = document.createElement('div');
+    const div  = document.createElement('div');
     div.className = 'chat-msg';
     div.innerHTML = `<span class="author">${esc(playerName)}:</span> ${esc(text)}`;
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
   });
 
+  // ── UI helpers ──────────────────────────────────────────────────────────────
+
   function renderPlayers(players, hostId) {
-    const list = document.getElementById('playerList');
-    const countEl = document.getElementById('playerCount');
+    const list     = document.getElementById('playerList');
+    const countEl  = document.getElementById('playerCount');
     const connected = players.filter(p => p.connected);
     countEl.textContent = `(${connected.length})`;
 
@@ -115,11 +105,10 @@
     const connected = players.filter(p => p.connected).length;
     const el = document.getElementById('waitingMsg');
     if (!minPlayers) return;
-    if (connected < minPlayers) {
-      el.textContent = `Aguardando jogadores... (${connected}/${minPlayers} mínimo)`;
-    } else {
-      el.textContent = `Pronto para começar!`;
-    }
+
+    el.textContent = connected < minPlayers
+      ? `Aguardando jogadores... (${connected}/${minPlayers} mínimo)`
+      : 'Pronto para começar!';
 
     const startBtn = document.getElementById('startBtn');
     if (startBtn) {
@@ -129,12 +118,10 @@
     }
   }
 
-  window.startGame = function () {
-    socket.emit('lobby:start', { roomId });
-  };
+  window.startGame = function () { socket.emit('lobby:start', { roomId }); };
 
   window.copyLink = function () {
-    navigator.clipboard.writeText(inviteLinkEl.value).then(() => {
+    navigator.clipboard.writeText(document.getElementById('inviteLink').value).then(() => {
       document.getElementById('copyMsg').textContent = 'Link copiado!';
       setTimeout(() => { document.getElementById('copyMsg').textContent = ''; }, 2000);
     });
@@ -142,15 +129,13 @@
 
   window.sendChat = function () {
     const input = document.getElementById('chatInput');
-    const text = input.value.trim();
+    const text  = input.value.trim();
     if (!text) return;
     socket.emit('chat:message', { roomId, text });
     input.value = '';
   };
 
-  window.chatKeyDown = function (e) {
-    if (e.key === 'Enter') window.sendChat();
-  };
+  window.chatKeyDown = function (e) { if (e.key === 'Enter') window.sendChat(); };
 
   function esc(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

@@ -18,27 +18,7 @@
       <span id="gameTitle" class="game-title"></span>
       <span id="turnIndicator" class="turn-indicator"></span>
     </div>
-
-    <div class="game-layout">
-      <div id="gameArea" class="game-area"></div>
-
-      <aside class="game-sidebar">
-        <div id="playersPanel" class="players-panel-game"></div>
-
-        <div class="event-log-panel">
-          <h3>Log</h3>
-          <div id="eventLog" class="event-log"></div>
-        </div>
-
-        <div class="chat-panel-game">
-          <div class="chat-messages" id="chatMessages"></div>
-          <div class="chat-input-row">
-            <input type="text" id="chatInput" placeholder="Chat..." maxlength="200" onkeydown="chatKeyDown(event)">
-            <button class="btn-sm" onclick="sendChat()">→</button>
-          </div>
-        </div>
-      </aside>
-    </div>
+    <div id="gameArea" class="game-area"></div>
   </div>
 
   <div id="gameOverModal" class="modal-overlay" style="display:none">
