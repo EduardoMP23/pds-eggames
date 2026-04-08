@@ -1,15 +1,22 @@
 'use strict';
 
+const HiveGame = require('../domain/hive/HiveGame');
+const CoupGame = require('../domain/coup/CoupGame');
+const ItoGame  = require('../domain/ito/ItoGame');
+
+const GAME_REGISTRY = {
+  hive: HiveGame,
+  coup: CoupGame,
+  ito:  ItoGame,
+};
+
 /**
  * GameService — application use-cases for in-game interactions.
  *
- * Orchestrates the domain (HiveGame) and delegates I/O to the injected ports:
+ * Orchestrates domain game modules and delegates I/O to the injected ports:
  *   - RoomRepositoryPort  for reading / mutating room state
  *   - EventBusPort        for broadcasting updates to connected clients
  */
-
-const HiveGame = require('../domain/hive/HiveGame');
-
 class GameService {
   /**
    * @param {import('./ports/RoomRepositoryPort')} roomRepository
@@ -20,15 +27,14 @@ class GameService {
     this._bus  = eventBus;
   }
 
+  _getGame(gameId) {
+    const game = GAME_REGISTRY[gameId];
+    if (!game) throw new Error(`Unknown gameId: ${gameId}`);
+    return game;
+  }
+
   // ── Use case: start a game ──────────────────────────────────────────────────
 
-  /**
-   * Initialise game state for the room and broadcast the start event.
-   *
-   * @param {string} roomId
-   * @param {string} hostSocketId  socket of the player requesting the start
-   * @returns {{ error?: string }}
-   */
   startGame(roomId, hostSocketId) {
     const playerInfo = this._repo.getPlayerInfo(hostSocketId);
     if (!playerInfo) return { error: 'Player not found' };
@@ -37,32 +43,27 @@ class GameService {
     if (!room) return { error: 'Room not found' };
     if (room.hostPlayerId !== playerInfo.playerId) return { error: 'Only the host can start the game' };
 
+    const Game = this._getGame(room.gameId);
     const connected = room.players.filter(p => p.connected);
-    if (connected.length < HiveGame.MIN_PLAYERS) {
-      return { error: `Need at least ${HiveGame.MIN_PLAYERS} players to start` };
+    if (connected.length < Game.MIN_PLAYERS) {
+      return { error: `Need at least ${Game.MIN_PLAYERS} players to start` };
+    }
+    if (connected.length > Game.MAX_PLAYERS) {
+      return { error: `Maximum ${Game.MAX_PLAYERS} players allowed` };
     }
 
-    room.gameState = HiveGame.initState(
+    room.gameState = Game.initState(
       connected.map(p => ({ playerId: p.playerId, playerName: p.playerName }))
     );
     room.status = 'playing';
 
-    this._bus.toRoom(roomId, 'game:start', { gameId: 'hive', roomId });
-    this._bus.broadcastGameState(room, playerId => HiveGame.getPublicState(room.gameState, playerId));
-
+    this._bus.toRoom(roomId, 'game:start', { gameId: room.gameId, roomId });
+    this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId));
     return {};
   }
 
   // ── Use case: handle a player action ───────────────────────────────────────
 
-  /**
-   * Validate and apply one game action, then broadcast the updated state.
-   *
-   * @param {string} socketId
-   * @param {string} roomId
-   * @param {{ type: string, [key: string]: any }} action
-   * @returns {{ error?: string }}
-   */
   handleAction(socketId, roomId, action) {
     const playerInfo = this._repo.getPlayerInfo(socketId);
     if (!playerInfo) return { error: 'Player not found' };
@@ -70,7 +71,8 @@ class GameService {
     const room = this._repo.getRoom(roomId);
     if (!room || room.status !== 'playing') return { error: 'Game not in progress' };
 
-    const result = HiveGame.applyAction(room.gameState, action, playerInfo.playerId);
+    const Game = this._getGame(room.gameId);
+    const result = Game.applyAction(room.gameState, action, playerInfo.playerId);
     if (result.error) return { error: result.error };
 
     if (result.events?.length > 0) {
@@ -82,27 +84,22 @@ class GameService {
       this._bus.toRoom(roomId, 'game:over', {
         winner:     result.winner,
         winnerName: result.winnerName,
-        reason:     result.reason
+        reason:     result.reason,
+        teamWin:    result.teamWin || false,
       });
     }
 
-    this._bus.broadcastGameState(room, playerId => HiveGame.getPublicState(room.gameState, playerId));
+    this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId));
     return {};
   }
 
   // ── Use case: reconnect a player ────────────────────────────────────────────
 
-  /**
-   * Resend the current game state to a reconnecting player's new socket.
-   *
-   * @param {Object} room
-   * @param {string} playerId
-   * @param {string} socketId  the player's new socket ID
-   */
   reconnect(room, playerId, socketId) {
     if (!room.gameState) return;
-    this._bus.toSocket(socketId, 'game:start', { gameId: 'hive', roomId: room.roomId });
-    this._bus.toSocket(socketId, 'game:state-update', HiveGame.getPublicState(room.gameState, playerId));
+    const Game = this._getGame(room.gameId);
+    this._bus.toSocket(socketId, 'game:start', { gameId: room.gameId, roomId: room.roomId });
+    this._bus.toSocket(socketId, 'game:state-update', Game.getPublicState(room.gameState, playerId));
   }
 }
 

@@ -1,0 +1,374 @@
+/* ── ITO layout ─────────────────────────────────────────────────────────────── */
+
+.ito-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ito-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0.65rem 1.25rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ito-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  gap: 0;
+}
+
+.ito-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.25rem;
+}
+
+.ito-log {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-left: 1px solid var(--border);
+  padding: 0.75rem;
+  overflow-y: auto;
+  font-size: 0.8rem;
+}
+
+/* ── Header elements ─────────────────────────────────────────────────────────── */
+
+.ito-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ito-round {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+.ito-lives { font-size: 1.1rem; letter-spacing: 0.1rem; }
+
+.ito-heart.alive { color: var(--danger); }
+.ito-heart.lost  { color: var(--border); }
+
+.ito-cards-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--bg3);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+}
+
+.ito-theme {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.ito-theme-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.ito-theme-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ito-players-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ito-player-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  transition: background 0.2s, color 0.2s;
+}
+
+.ito-player-badge.described {
+  background: #1a3a1a;
+  border-color: var(--success);
+  color: var(--success);
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────────── */
+
+.ito-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.ito-section-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.ito-rule-hint {
+  font-size: 0.82rem;
+  color: var(--warning);
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.ito-muted { color: var(--muted); font-size: 0.85rem; }
+
+/* ── My card input (describing phase) ──────────────────────────────────────── */
+
+.ito-card-input {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.ito-my-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg3);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  min-width: 60px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.ito-card-number {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.ito-card-hint {
+  font-size: 0.6rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+.ito-desc-input {
+  flex: 1;
+  padding: 0.5rem 0.85rem;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.ito-desc-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ito-ok-badge {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--success);
+  margin-bottom: 0.5rem;
+}
+
+.ito-error {
+  background: var(--danger);
+  color: white;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+/* ── Submitted descriptions list ─────────────────────────────────────────────── */
+
+.ito-desc-list { display: flex; flex-direction: column; gap: 0.35rem; }
+
+.ito-desc-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ito-desc-player { font-weight: 700; min-width: 90px; }
+.ito-desc-text   { color: var(--text); }
+
+/* ── Ordering phase ──────────────────────────────────────────────────────────── */
+
+.ito-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ito-order-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  transition: background 0.1s;
+}
+
+.ito-order-row:hover { background: #1e2a3e; }
+
+.ito-order-pos {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 700;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.ito-order-desc {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.ito-order-desc.my-desc .ito-desc-word { color: var(--accent); }
+
+.ito-desc-word {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ito-desc-owner {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+.ito-order-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.ito-move-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.7rem;
+  width: 24px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+
+.ito-move-btn:hover:not(:disabled) { background: var(--accent); color: white; border-color: var(--accent); }
+.ito-move-btn:disabled { opacity: 0.3; cursor: default; }
+
+.ito-confirm-btn { margin-top: 0.75rem; }
+
+/* ── Round result ─────────────────────────────────────────────────────────────── */
+
+.ito-result-banner {
+  font-size: 1.3rem;
+  font-weight: 700;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ito-result-banner.win  { background: #1a3a1a; color: var(--success); }
+.ito-result-banner.lose { background: #3a1010; color: var(--danger); }
+
+.ito-lives-inline { font-size: 1.1rem; letter-spacing: 0.1rem; }
+
+.ito-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ito-result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 7px;
+  font-size: 0.9rem;
+  border: 1px solid transparent;
+}
+
+.ito-result-row.correct { background: #0f2a0f; border-color: var(--success); }
+.ito-result-row.wrong   { background: #2a0f0f; border-color: var(--danger); }
+
+.ito-res-pos    { width: 22px; text-align: center; color: var(--muted); font-size: 0.75rem; flex-shrink: 0; }
+.ito-res-value  { font-size: 1.2rem; font-weight: 900; width: 42px; text-align: center; flex-shrink: 0; }
+.ito-res-desc   { flex: 1; font-weight: 600; }
+.ito-res-player { font-size: 0.75rem; color: var(--muted); min-width: 70px; }
+.ito-res-icon   { font-weight: 700; width: 18px; text-align: center; flex-shrink: 0; }
+
+.ito-result-row.correct .ito-res-value { color: var(--success); }
+.ito-result-row.wrong   .ito-res-value { color: var(--danger); }
+.ito-result-row.correct .ito-res-icon  { color: var(--success); }
+.ito-result-row.wrong   .ito-res-icon  { color: var(--danger); }
+
+/* ── Log ─────────────────────────────────────────────────────────────────────── */
+
+.ito-log-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.ito-log-entry {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+}
+
+.ito-log-entry:first-of-type { color: var(--text); }
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .ito-log { display: none; }
+  .ito-card-input { flex-wrap: wrap; }
+  .ito-my-card { flex-direction: row; gap: 0.3rem; min-width: unset; }
+}

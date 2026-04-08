@@ -1,21 +1,21 @@
 'use strict';
 
-const { MIN_PLAYERS, MAX_PLAYERS } = require('../../domain/hive/HiveGame');
+const HiveGame = require('../../domain/hive/HiveGame');
+const CoupGame = require('../../domain/coup/CoupGame');
+const ItoGame  = require('../../domain/ito/ItoGame');
+
+const GAME_CONFIGS = {
+  hive: { minPlayers: HiveGame.MIN_PLAYERS, maxPlayers: HiveGame.MAX_PLAYERS },
+  coup: { minPlayers: CoupGame.MIN_PLAYERS, maxPlayers: CoupGame.MAX_PLAYERS },
+  ito:  { minPlayers: ItoGame.MIN_PLAYERS,  maxPlayers: ItoGame.MAX_PLAYERS  },
+};
+
+const DEFAULT_GAME_ID = 'hive';
 
 /**
  * SocketHandler — inbound adapter that maps Socket.io events to application use-cases.
- *
- * This class is the only place in the backend that knows about socket IDs and
- * Socket.io event names.  It translates raw socket events into calls on
- * RoomService / GameService and delegates all broadcasting to SocketIOEventBus.
  */
 class SocketHandler {
-  /**
-   * @param {import('socket.io').Server}                            io
-   * @param {import('../../application/RoomService')}               roomService
-   * @param {import('../../application/GameService')}               gameService
-   * @param {import('../events/SocketIOEventBus')}                  eventBus
-   */
   constructor(io, roomService, gameService, eventBus) {
     this._io    = io;
     this._rooms = roomService;
@@ -23,26 +23,25 @@ class SocketHandler {
     this._bus   = eventBus;
   }
 
-  /** Attach all Socket.io event listeners. Call once after server setup. */
   register() {
     this._io.on('connection', socket => {
       console.log('Client connected:', socket.id);
 
       // ── Create room ───────────────────────────────────────────────────────
-      socket.on('room:create', ({ playerName }) => {
-        const { room, playerId } = this._rooms.createRoom(
-          socket.id, playerName, MIN_PLAYERS, MAX_PLAYERS
-        );
+      socket.on('room:create', ({ playerName, gameId }) => {
+        const gid = GAME_CONFIGS[gameId] ? gameId : DEFAULT_GAME_ID;
+        const { minPlayers, maxPlayers } = GAME_CONFIGS[gid];
+        const { room, playerId } = this._rooms.createRoom(socket.id, playerName, gid, minPlayers, maxPlayers);
         socket.join(room.roomId);
         socket.emit('room:created', {
           roomId:     room.roomId,
           playerId,
           playerName,
-          gameId:     'hive',
+          gameId:     gid,
           players:    this._playerList(room),
           isHost:     true,
           minPlayers: room.minPlayers,
-          maxPlayers: room.maxPlayers
+          maxPlayers: room.maxPlayers,
         });
       });
 
@@ -51,7 +50,7 @@ class SocketHandler {
         const result = this._rooms.joinRoom(socket.id, playerName, roomId);
         if (result.error) return socket.emit('room:join-error', { message: result.error });
 
-        const { room, playerId, reconnected } = result;
+        const { room, playerId } = result;
         socket.join(roomId);
 
         const playerList = this._playerList(room);
@@ -59,15 +58,14 @@ class SocketHandler {
           roomId,
           playerId,
           playerName,
-          gameId:     'hive',
+          gameId:     room.gameId,
           players:    playerList,
           isHost:     room.hostPlayerId === playerId,
           status:     room.status,
           minPlayers: room.minPlayers,
-          maxPlayers: room.maxPlayers
+          maxPlayers: room.maxPlayers,
         });
 
-        // Resend game state if rejoining a running game
         if (room.status === 'playing' && room.gameState) {
           this._game.reconnect(room, playerId, socket.id);
         }
@@ -94,7 +92,7 @@ class SocketHandler {
         this._bus.toRoom(roomId, 'chat:message', {
           playerName: info.playerName,
           text:       text.slice(0, 200),
-          timestamp:  Date.now()
+          timestamp:  Date.now(),
         });
       });
 
@@ -110,20 +108,18 @@ class SocketHandler {
 
         this._bus.toRoom(roomId, 'lobby:player-left', {
           playerId,
-          players:    this._playerList(updatedRoom),
-          newHostId:  updatedRoom.hostPlayerId
+          players:   this._playerList(updatedRoom),
+          newHostId: updatedRoom.hostPlayerId,
         });
       });
     });
   }
 
-  // ── Private helpers ────────────────────────────────────────────────────────
-
   _playerList(room) {
     return room.players.map(p => ({
       playerId:   p.playerId,
       playerName: p.playerName,
-      connected:  p.connected
+      connected:  p.connected,
     }));
   }
 }

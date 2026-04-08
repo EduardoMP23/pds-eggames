@@ -18,13 +18,13 @@ class InMemoryRoomRepository {
 
   // ── RoomRepositoryPort implementation ──────────────────────────────────────
 
-  createRoom(socketId, playerName, minPlayers, maxPlayers) {
+  createRoom(socketId, playerName, gameId, minPlayers, maxPlayers) {
     const roomId   = uuidv4().slice(0, 8);
     const playerId = uuidv4().slice(0, 8);
 
     const room = {
       roomId,
-      gameId: 'hive',
+      gameId: gameId || 'hive',
       hostPlayerId: playerId,
       status: 'lobby',
       players: [{ playerId, playerName, socketId, connected: true }],

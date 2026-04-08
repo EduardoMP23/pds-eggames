@@ -15,8 +15,8 @@ class RoomService {
   }
 
   /** Create a new room and return { room, playerId }. */
-  createRoom(socketId, playerName, minPlayers, maxPlayers) {
-    return this._repo.createRoom(socketId, playerName, minPlayers, maxPlayers);
+  createRoom(socketId, playerName, gameId, minPlayers, maxPlayers) {
+    return this._repo.createRoom(socketId, playerName, gameId, minPlayers, maxPlayers);
   }
 
   /** Join or reconnect to an existing room. Returns { room, playerId, reconnected } or { error }. */

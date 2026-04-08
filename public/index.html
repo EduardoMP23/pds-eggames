@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hive — Multiplayer</title>
+  <title>Board Games Multiplayer</title>
   <link rel="stylesheet" href="/css/base.css">
   <style>
     .hero { text-align: center; padding: 3rem 1rem 2rem; }
@@ -12,13 +12,14 @@
     .name-form { display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 3rem; }
     .name-form input { padding: 0.6rem 1rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; background: var(--bg2); color: var(--text); width: 240px; }
     .name-form input:focus { outline: none; border-color: var(--accent); }
-    .game-card { background: var(--bg2); border: 2px solid var(--border); border-radius: 12px; padding: 2rem; cursor: pointer; transition: border-color 0.2s, transform 0.1s; text-align: center; max-width: 320px; margin: 0 auto; }
+    .games-grid { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; padding: 0 1rem; }
+    .game-card { background: var(--bg2); border: 2px solid var(--border); border-radius: 12px; padding: 2rem; cursor: pointer; transition: border-color 0.2s, transform 0.1s; text-align: center; width: 280px; }
     .game-card:hover { border-color: var(--accent); transform: translateY(-2px); }
     .game-card .icon { font-size: 4rem; margin-bottom: 1rem; }
     .game-card h2 { font-size: 1.5rem; margin-bottom: 0.75rem; }
     .game-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
     .game-card .players { font-size: 0.85rem; color: var(--accent); margin-top: 0.75rem; font-weight: 600; }
-    .open-rooms { max-width: 600px; margin: 3rem auto 0; padding: 0 1rem; }
+    .open-rooms { max-width: 640px; margin: 3rem auto 0; padding: 0 1rem 3rem; }
     .open-rooms h2 { margin-bottom: 1rem; color: var(--muted); font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
     .room-list { display: flex; flex-direction: column; gap: 0.5rem; }
     .room-item { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
@@ -30,8 +31,8 @@
 </head>
 <body>
   <div class="hero">
-    <h1>🐝 Hive</h1>
-    <p>Cerque a rainha do oponente com seus insetos hexagonais</p>
+    <h1>Board Games</h1>
+    <p>Multiplayer em tempo real — sem cadastro, só entre e jogue</p>
     <div class="name-form">
       <input type="text" id="playerName" placeholder="Seu nome..." maxlength="20" autocomplete="off">
       <button class="btn" onclick="saveName()">OK</button>
@@ -39,12 +40,24 @@
     <p id="currentName" style="color: var(--accent); font-weight:600; display:none"></p>
   </div>
 
-  <div style="padding: 0 1rem;">
-    <div class="game-card" onclick="createRoom()">
+  <div class="games-grid">
+    <div class="game-card" onclick="createRoom('hive')">
       <div class="icon">🐝</div>
       <h2>Hive</h2>
       <p>Estratégia hexagonal — coloque e mova insetos para cercar a rainha adversária sem quebrar a colmeia</p>
       <div class="players">2 jogadores</div>
+    </div>
+    <div class="game-card" onclick="createRoom('coup')">
+      <div class="icon">👑</div>
+      <h2>Coup</h2>
+      <p>Blefe e dedução social — alegue ser qualquer personagem, conteste seus adversários, e seja o último jogador com influência</p>
+      <div class="players">2–6 jogadores</div>
+    </div>
+    <div class="game-card" onclick="createRoom('ito')">
+      <div class="icon">🎋</div>
+      <h2>ITO</h2>
+      <p>Jogo cooperativo — descreva seu número secreto com uma palavra, ordenem juntos sem revelar valores e tentem completar as 3 rodadas</p>
+      <div class="players">2–10 jogadores · Cooperativo</div>
     </div>
   </div>
 

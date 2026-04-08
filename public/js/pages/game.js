@@ -3,6 +3,12 @@
   const myPlayerId   = sessionStorage.getItem('playerId');
   const myPlayerName = sessionStorage.getItem('playerName');
 
+  const GAME_META = {
+    hive: { title: '🐝 Hive', css: '/css/games/hive.css', js: '/js/games/hive.js' },
+    coup: { title: '👑 Coup', css: '/css/games/coup.css', js: '/js/games/coup.js' },
+    ito:  { title: '🎋 ITO',  css: '/css/games/ito.css',  js: '/js/games/ito.js'  },
+  };
+
   let gameModule = null;
   let lastState  = null;
 
@@ -15,7 +21,7 @@
     if (data.playerId) sessionStorage.setItem('playerId', data.playerId);
   });
 
-  socket.on('game:start', () => loadGame());
+  socket.on('game:start', ({ gameId }) => loadGame(gameId));
 
   socket.on('game:state-update', state => {
     lastState = state;
@@ -25,22 +31,35 @@
     }
   });
 
-  socket.on('game:over', ({ winner, winnerName, reason }) => {
-    const isWinner = winner === myPlayerId;
-    document.getElementById('gameOverTitle').textContent = isWinner ? '🏆 Você Venceu!' : '😢 Fim de Jogo';
-    document.getElementById('gameOverMsg').textContent =
-      winner
-        ? `${winnerName} venceu!${reason ? ` (${reason})` : ''}`
-        : `Empate${reason ? ' por ' + reason : ''}!`;
+  socket.on('game:action-error', ({ message }) => {
+    if (gameModule?.onError) gameModule.onError(message);
+  });
+
+  socket.on('game:over', ({ winner, winnerName, reason, teamWin }) => {
+    let title, msg;
+    if (teamWin) {
+      title = '🏆 Time Venceu!';
+      msg   = reason || 'Parabéns, vocês completaram o desafio!';
+    } else if (winner && winner !== 'team') {
+      const isWinner = winner === myPlayerId;
+      title = isWinner ? '🏆 Você Venceu!' : '😢 Fim de Jogo';
+      msg   = `${winnerName} venceu!${reason ? ` (${reason})` : ''}`;
+    } else {
+      title = '😢 Fim de Jogo';
+      msg   = reason || 'O time perdeu.';
+    }
+    document.getElementById('gameOverTitle').textContent = title;
+    document.getElementById('gameOverMsg').textContent   = msg;
     document.getElementById('gameOverModal').style.display = 'flex';
   });
 
-  function loadGame() {
-    document.getElementById('gameTitle').textContent = '🐝 Hive';
-    document.getElementById('gameCss').href = '/css/games/hive.css';
+  function loadGame(gameId) {
+    const meta = GAME_META[gameId] || GAME_META.hive;
+    document.getElementById('gameTitle').textContent = meta.title;
+    document.getElementById('gameCss').href = meta.css;
 
     const script  = document.createElement('script');
-    script.src    = '/js/games/hive.js';
+    script.src    = meta.js;
     script.onload = () => {
       gameModule = window.GameModule;
       if (gameModule?.init) {
@@ -62,6 +81,23 @@
 
   function updateTurnIndicator(state) {
     const el = document.getElementById('turnIndicator');
-    if (el) el.textContent = state.isMyTurn ? '🟢 Sua vez!' : 'Aguardando...';
+    if (!el) return;
+    // ITO — cooperative indicator
+    if (state.phase === 'describing') {
+      el.textContent = state.iAmDescribed ? '✅ Descrição enviada' : '✏️ Descreva suas cartas';
+    } else if (state.phase === 'ordering') {
+      el.textContent = '🔀 Ordenem as cartas';
+    } else if (state.phase === 'round-result') {
+      el.textContent = state.roundSuccess ? '✅ Rodada vencida!' : '❌ Rodada perdida';
+    // Coup / Hive indicators
+    } else if (state.myTurn) {
+      el.textContent = '🟢 Sua vez!';
+    } else if (state.iAmAwaiting) {
+      el.textContent = '⚡ Reagir';
+    } else if (state.mustLoseInfluence) {
+      el.textContent = '💀 Escolha uma carta';
+    } else {
+      el.textContent = 'Aguardando...';
+    }
   }
 })();

@@ -1,5 +1,7 @@
 (function () {
-  const nameInput    = document.getElementById('playerName');
+  const GAME_LABELS = { hive: '🐝 Hive', coup: '👑 Coup' };
+
+  const nameInput     = document.getElementById('playerName');
   const currentNameEl = document.getElementById('currentName');
 
   const savedName = sessionStorage.getItem('playerName');
@@ -22,7 +24,7 @@
     currentNameEl.style.display = '';
   }
 
-  window.createRoom = function () {
+  window.createRoom = function (gameId) {
     const name = sessionStorage.getItem('playerName') || nameInput.value.trim();
     if (!name) {
       nameInput.focus();
@@ -32,7 +34,7 @@
     sessionStorage.setItem('playerName', name);
 
     const socket = io();
-    socket.emit('room:create', { playerName: name });
+    socket.emit('room:create', { playerName: name, gameId });
     socket.on('room:created', ({ roomId, playerId }) => {
       sessionStorage.setItem('playerId', playerId);
       sessionStorage.setItem('roomId', roomId);
@@ -59,7 +61,7 @@
       list.innerHTML = rooms.map(r => `
         <div class="room-item" onclick="window.location.href='/lobby/${r.roomId}'">
           <div>
-            <strong>🐝 Hive</strong>
+            <strong>${esc(GAME_LABELS[r.gameId] || r.gameId)}</strong>
             <div class="room-info">Host: ${esc(r.hostName)} &bull; ${r.playerCount}/${r.maxPlayers} jogadores</div>
           </div>
           <button class="btn" style="font-size:0.8rem;padding:0.4rem 0.8rem">Entrar</button>
