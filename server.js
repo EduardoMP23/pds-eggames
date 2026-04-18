@@ -20,7 +20,7 @@ const { Server } = require('socket.io');
 const path    = require('path');
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
-const InMemoryRoomRepository = require('./src/infrastructure/persistence/InMemoryRoomRepository');
+const SQLiteRoomRepository   = require('./src/infrastructure/persistence/SQLiteRoomRepository');
 const SocketIOEventBus       = require('./src/infrastructure/events/SocketIOEventBus');
 const HttpRoutes             = require('./src/infrastructure/web/HttpRoutes');
 const SocketHandler          = require('./src/infrastructure/web/SocketHandler');
@@ -56,7 +56,7 @@ app.get('/game/:roomId',  (_req, res) => res.sendFile(path.join(__dirname, 'publ
 app.get('/health',        (_req, res) => res.json({ status: 'ok' }));
 
 // ── Composition root ──────────────────────────────────────────────────────────
-const roomRepository = new InMemoryRoomRepository();
+const roomRepository = new SQLiteRoomRepository();
 const eventBus       = new SocketIOEventBus(io);
 
 const roomService = new RoomService(roomRepository);
