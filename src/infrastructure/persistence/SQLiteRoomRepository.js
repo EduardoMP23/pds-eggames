@@ -1,8 +1,8 @@
 'use strict';
 
-const Database = require('better-sqlite3');
-const path     = require('path');
-const fs       = require('fs');
+const { DatabaseSync } = require('node:sqlite');
+const path             = require('path');
+const fs               = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 const DB_PATH = process.env.DB_PATH
@@ -23,7 +23,7 @@ class SQLiteRoomRepository {
   constructor() {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-    this._db      = new Database(DB_PATH);
+    this._db      = new DatabaseSync(DB_PATH);
     this._rooms   = new Map();  // roomId  → room
     this._players = new Map();  // socketId → { roomId, playerId, playerName }
 
@@ -95,23 +95,22 @@ class SQLiteRoomRepository {
         updated_at     = excluded.updated_at
     `);
 
-    const activeIds   = [...this._rooms.keys()];
-    const placeholders = activeIds.map(() => '?').join(',');
-    const deleteStale = activeIds.length > 0
-      ? this._db.prepare(`DELETE FROM rooms WHERE room_id NOT IN (${placeholders})`)
-      : this._db.prepare('DELETE FROM rooms');
+    const activeIds = [...this._rooms.keys()];
 
-    const transaction = this._db.transaction(() => {
+    try {
+      this._db.exec('BEGIN');
       for (const room of this._rooms.values()) {
         upsert.run(this._serialize(room));
       }
-      if (activeIds.length > 0) deleteStale.run(...activeIds);
-      else deleteStale.run();
-    });
-
-    try {
-      transaction();
+      if (activeIds.length > 0) {
+        const placeholders = activeIds.map(() => '?').join(',');
+        this._db.prepare(`DELETE FROM rooms WHERE room_id NOT IN (${placeholders})`).run(...activeIds);
+      } else {
+        this._db.exec('DELETE FROM rooms');
+      }
+      this._db.exec('COMMIT');
     } catch (err) {
+      this._db.exec('ROLLBACK');
       console.error('[DB] Flush error:', err.message);
     }
   }

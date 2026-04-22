@@ -1,334 +1,342 @@
 (function () {
-  // ── Constants ────────────────────────────────────────────────────────────────
+  // ── Constants ─────────────────────────────────────────────────────────────────
+
+  const ROLE_IMAGES = {
+    duke:       '/assets/coup/duque.png',
+    assassin:   '/assets/coup/assassino.png',
+    captain:    '/assets/coup/capitao.png',
+    ambassador: '/assets/coup/embaixador.png',
+    contessa:   '/assets/coup/contessa.png',
+  };
   const ROLE_LABELS = {
     duke: 'Duque', assassin: 'Assassino', captain: 'Capitão',
-    ambassador: 'Embaixador', contessa: 'Condessa', unknown: '?',
-  };
-  const ROLE_ICONS = {
-    duke: '🟡', assassin: '🗡️', captain: '⚓', ambassador: '📜', contessa: '👸', unknown: '❓',
-  };
-  const ACTION_LABELS = {
-    income: 'Renda', 'foreign-aid': 'Ajuda Externa', coup: 'Golpe de Estado',
-    tax: 'Taxa (Duque)', assassinate: 'Assassinar (Assassino)',
-    steal: 'Roubar (Capitão)', exchange: 'Trocar (Embaixador)',
+    ambassador: 'Embaixador', contessa: 'Condessa',
   };
 
-  // Roles that can block each action
-  const BLOCK_ROLES = {
-    'foreign-aid': ['duke'],
-    assassinate: ['contessa'],
-    steal: ['captain', 'ambassador'],
-  };
+  // ── Module state ──────────────────────────────────────────────────────────────
 
-  // ── Module state ─────────────────────────────────────────────────────────────
-  let _el = null;
-  let _myPlayerId = null;
-  let _sendAction = null;
-  let _pendingActionType = null; // waiting for target selection
-  let _lastState = null;
+  let _el          = null;
+  let _myPlayerId  = null;
+  let _sendAction  = null;
+  let _lastState   = null;
+  let _longPressTimer = null;
 
-  // ── Init ─────────────────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────────────
+
   function init(el, myPlayerId) {
-    _el = el;
+    _el         = el;
     _myPlayerId = myPlayerId;
+
     _el.innerHTML = `
       <div class="coup-layout">
-        <div class="coup-players" id="coupPlayers"></div>
-        <div class="coup-main">
-          <div class="coup-status" id="coupStatus"></div>
-          <div class="coup-actions" id="coupActions"></div>
-          <div class="coup-log" id="coupLog"></div>
+
+        <!-- TOP: inverted coin counter (visible to opponents across table) -->
+        <div class="coup-top-bar">
+          <div class="coup-top-counter">
+            <span class="coup-counter-num" id="coupTopNum">0</span>
+            <img src="/assets/coup/moeda.png" class="coup-counter-coin" alt="moeda">
+          </div>
         </div>
+
+        <!-- CENTER: shared bank and deck -->
+        <div class="coup-center">
+          <div class="coup-bank-area">
+            <img src="/assets/coup/monte-moedas.png" class="coup-pile-img" id="coupPileImg" alt="banco de moedas">
+            <div class="coup-resource-count" id="coupBankCount">0</div>
+          </div>
+          <div class="coup-deck-area">
+            <img src="/assets/coup/baralho.png" class="coup-deck-img" id="coupDeckImg" alt="baralho">
+            <div class="coup-resource-count" id="coupDeckCount">0</div>
+          </div>
+        </div>
+
+        <!-- BOTTOM: player's own cards and coin counter -->
+        <div class="coup-bottom-bar">
+          <div class="coup-own-cards" id="coupOwnCards"></div>
+          <div class="coup-own-counter" id="coupOwnCounter">
+            <img src="/assets/coup/moeda.png" class="coup-counter-coin" alt="moeda">
+            <span class="coup-counter-num" id="coupBottomNum">0</span>
+          </div>
+        </div>
+
+        <!-- Exchange overlay (ambassador action) -->
+        <div class="coup-exchange-overlay" id="coupExchangeOverlay" style="display:none"></div>
+
+        <!-- Card action modal -->
+        <div class="coup-modal-overlay" id="coupModalOverlay" style="display:none">
+          <div class="coup-modal" id="coupModal"></div>
+        </div>
+
+        <!-- Toast feedback -->
+        <div class="coup-toast" id="coupToast"></div>
+
       </div>
     `;
+
+    setupBankInteraction();
+    setupDeckInteraction();
+    setupCoinReturn();
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Interaction setup ─────────────────────────────────────────────────────────
+
+  function setupBankInteraction() {
+    const pile = document.getElementById('coupPileImg');
+    if (!pile) return;
+    pile.addEventListener('click', () => {
+      _sendAction && _sendAction({ type: 'take-coin' });
+    });
+  }
+
+  function setupCoinReturn() {
+    const counter = document.getElementById('coupOwnCounter');
+    if (!counter) return;
+    counter.addEventListener('click', () => {
+      _sendAction && _sendAction({ type: 'return-coin' });
+    });
+  }
+
+  function setupDeckInteraction() {
+    const deck = document.getElementById('coupDeckImg');
+    if (!deck) return;
+
+    // Prevent browser context menu on long press
+    deck.addEventListener('contextmenu', e => e.preventDefault());
+
+    function startPress(e) {
+      e.preventDefault();
+      _longPressTimer = setTimeout(() => {
+        _longPressTimer = null;
+        _sendAction && _sendAction({ type: 'ambassador-start' });
+        showToast('Segurando o baralho...');
+      }, 700);
+    }
+
+    function endPress(e) {
+      e.preventDefault();
+      if (_longPressTimer !== null) {
+        clearTimeout(_longPressTimer);
+        _longPressTimer = null;
+        // Short tap: show deck count
+        if (_lastState) showToast(`${_lastState.deckCount} carta${_lastState.deckCount !== 1 ? 's' : ''} no baralho`);
+      }
+    }
+
+    function cancelPress() {
+      if (_longPressTimer !== null) {
+        clearTimeout(_longPressTimer);
+        _longPressTimer = null;
+      }
+    }
+
+    deck.addEventListener('touchstart',  startPress,  { passive: false });
+    deck.addEventListener('touchend',    endPress,    { passive: false });
+    deck.addEventListener('touchcancel', cancelPress);
+    deck.addEventListener('mousedown',   startPress);
+    deck.addEventListener('mouseup',     endPress);
+    deck.addEventListener('mouseleave',  cancelPress);
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+
   function render(state, sendAction) {
     _sendAction = sendAction;
-    _lastState = state;
+    _lastState  = state;
 
-    renderPlayers(state);
-    renderStatus(state);
-    renderActions(state);
-    renderLog(state);
+    const me = state.players.find(p => p.playerId === _myPlayerId);
+
+    // Update counters
+    const coins = me ? me.coins : 0;
+    const topNum    = document.getElementById('coupTopNum');
+    const bottomNum = document.getElementById('coupBottomNum');
+    const bankCount = document.getElementById('coupBankCount');
+    const deckCount = document.getElementById('coupDeckCount');
+
+    if (topNum)    topNum.textContent    = coins;
+    if (bottomNum) bottomNum.textContent = coins;
+    if (bankCount) bankCount.textContent = state.bankCoins;
+    if (deckCount) deckCount.textContent = state.deckCount;
+
+    renderOwnCards(me);
+    renderExchange(state, me);
+
+    if (state.status === 'finished') {
+      showToast(`Fim de jogo! Vencedor: ${esc(state.winnerName)}`);
+    }
   }
 
-  function renderPlayers(state) {
-    const el = document.getElementById('coupPlayers');
-    if (!el) return;
-    el.innerHTML = state.players.map(p => {
-      const isMe = p.playerId === _myPlayerId;
-      const isTurn = p.isCurrentTurn && state.phase === 'action';
-      const eliminated = p.eliminated;
+  // ── Own cards ─────────────────────────────────────────────────────────────────
 
-      const cards = p.influence.map(c => {
-        const label = ROLE_LABELS[c.role] || c.role;
-        const icon = ROLE_ICONS[c.role] || '?';
-        return `<span class="coup-card ${c.revealed ? 'revealed' : ''} ${isMe && !c.revealed ? 'mine' : ''}">${icon} ${label}</span>`;
-      }).join('');
+  function renderOwnCards(me) {
+    const el = document.getElementById('coupOwnCards');
+    if (!el || !me) return;
 
-      return `
-        <div class="coup-player ${isMe ? 'me' : ''} ${isTurn ? 'active-turn' : ''} ${eliminated ? 'eliminated' : ''}">
-          <div class="coup-player-header">
-            <span class="coup-player-name">${esc(p.playerName)}${isMe ? ' (você)' : ''}</span>
-            <span class="coup-coins">💰 ${p.coins}</span>
-          </div>
-          <div class="coup-cards">${cards}</div>
-          ${eliminated ? '<div class="coup-elim-badge">Eliminado</div>' : ''}
-        </div>
-      `;
-    }).join('');
-  }
-
-  function renderStatus(state) {
-    const el = document.getElementById('coupStatus');
-    if (!el) return;
-
-    let html = '';
-
-    if (state.pendingAction) {
-      const a = state.pendingAction;
-      const actionLabel = ACTION_LABELS[a.type] || a.type;
-      html += `<div class="coup-event">
-        <strong>${esc(a.actorName)}</strong> declarou: <em>${actionLabel}</em>`;
-      if (a.targetName) html += ` → alvo: <strong>${esc(a.targetName)}</strong>`;
-      if (a.claimedRole) html += ` (alegando ser ${ROLE_LABELS[a.claimedRole]})`;
-      html += `</div>`;
-    }
-
-    if (state.pendingBlock) {
-      const b = state.pendingBlock;
-      html += `<div class="coup-event coup-block">
-        <strong>${esc(b.blockerName)}</strong> bloqueou alegando ser <em>${ROLE_LABELS[b.claimedRole]}</em>
-      </div>`;
-    }
-
-    if (state.phase === 'await-reactions' || state.phase === 'await-block-reactions') {
-      if (state.awaitingFromNames?.length > 0) {
-        html += `<div class="coup-waiting">Aguardando: ${state.awaitingFromNames.map(n => esc(n)).join(', ')}</div>`;
-      }
-    }
-
-    if (state.phase === 'await-lose-influence' && state.mustLoseInfluence) {
-      html += `<div class="coup-alert">Escolha uma carta para revelar!</div>`;
-    }
-
-    if (state.phase === 'await-exchange' && state.exchangeOptions) {
-      html += `<div class="coup-alert">Escolha quais cartas manter.</div>`;
-    }
-
-    el.innerHTML = html;
-  }
-
-  function renderActions(state) {
-    const el = document.getElementById('coupActions');
-    if (!el) return;
     el.innerHTML = '';
 
-    // ── Lose influence ────────────────────────────────────────────────────────
-    if (state.mustLoseInfluence) {
-      const me = state.players.find(p => p.playerId === _myPlayerId);
-      if (!me) return;
-      const unrevealed = me.influence
-        .map((c, i) => ({ ...c, idx: i }))
-        .filter(c => !c.revealed);
+    me.influence.forEach((card, idx) => {
+      const slot = document.createElement('div');
+      slot.className = 'coup-card-slot' + (card.revealed ? ' is-revealed' : '');
 
-      el.innerHTML = `<div class="coup-section-label">Escolha qual carta revelar:</div>
-        <div class="coup-card-picker">
-          ${unrevealed.map(c => `
-            <button class="coup-pick-card" onclick="window._coupPickCard(${c.idx})">
-              ${ROLE_ICONS[c.role]} ${ROLE_LABELS[c.role]}
-            </button>
-          `).join('')}
-        </div>`;
+      const img = document.createElement('img');
+      img.className = 'coup-card-img';
+      img.alt       = ROLE_LABELS[card.role] || 'carta';
 
-      window._coupPickCard = (cardIndex) => {
-        _sendAction({ type: 'lose-influence', cardIndex });
-      };
+      if (card.revealed) {
+        img.src = ROLE_IMAGES[card.role] || '/assets/coup/carta-verso.png';
+
+        // Return-to-deck button
+        const btn = document.createElement('button');
+        btn.className   = 'coup-return-btn';
+        btn.textContent = '↩';
+        btn.title       = 'Devolver ao baralho';
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          showReturnDialog(idx, card.role);
+        });
+        slot.appendChild(img);
+        slot.appendChild(btn);
+      } else {
+        img.src = '/assets/coup/carta-verso.png';
+        slot.addEventListener('click', () => showRevealDialog(idx, card.role));
+        slot.appendChild(img);
+      }
+
+      el.appendChild(slot);
+    });
+  }
+
+  // ── Dialogs ───────────────────────────────────────────────────────────────────
+
+  function showRevealDialog(cardIdx, role) {
+    openModal(`
+      <img src="${ROLE_IMAGES[role] || '/assets/coup/carta-verso.png'}"
+           class="coup-modal-card-img" alt="${esc(ROLE_LABELS[role] || role)}">
+      <div class="coup-modal-role">${esc(ROLE_LABELS[role] || role)}</div>
+      <div class="coup-modal-btns">
+        <button class="coup-modal-btn coup-modal-confirm" id="coupModalPrimary">Revelar</button>
+        <button class="coup-modal-btn coup-modal-cancel"  id="coupModalSecondary">Cancelar</button>
+      </div>
+    `, () => {
+      _sendAction && _sendAction({ type: 'reveal-card', cardIndex: cardIdx });
+    });
+  }
+
+  function showReturnDialog(cardIdx, role) {
+    openModal(`
+      <img src="${ROLE_IMAGES[role] || '/assets/coup/carta-verso.png'}"
+           class="coup-modal-card-img" alt="${esc(ROLE_LABELS[role] || role)}">
+      <div class="coup-modal-role">${esc(ROLE_LABELS[role] || role)}</div>
+      <p class="coup-modal-text">Devolver ao baralho e comprar nova carta?</p>
+      <div class="coup-modal-btns">
+        <button class="coup-modal-btn coup-modal-confirm" id="coupModalPrimary">Devolver</button>
+        <button class="coup-modal-btn coup-modal-cancel"  id="coupModalSecondary">Cancelar</button>
+      </div>
+    `, () => {
+      _sendAction && _sendAction({ type: 'return-card-to-deck', cardIndex: cardIdx });
+    });
+  }
+
+  function openModal(html, onConfirm) {
+    const overlay = document.getElementById('coupModalOverlay');
+    const modal   = document.getElementById('coupModal');
+    if (!overlay || !modal) return;
+
+    modal.innerHTML = html;
+    overlay.style.display = 'flex';
+
+    document.getElementById('coupModalPrimary')?.addEventListener('click', () => {
+      onConfirm();
+      closeModal();
+    });
+    document.getElementById('coupModalSecondary')?.addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); }, { once: true });
+  }
+
+  function closeModal() {
+    const overlay = document.getElementById('coupModalOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  // ── Ambassador exchange ───────────────────────────────────────────────────────
+
+  function renderExchange(state, me) {
+    const overlay = document.getElementById('coupExchangeOverlay');
+    if (!overlay) return;
+
+    if (!state.exchangeOptions || state.exchangeOptions.length === 0) {
+      overlay.style.display = 'none';
       return;
     }
 
-    // ── Exchange card selection ───────────────────────────────────────────────
-    if (state.exchangeOptions && state.phase === 'await-exchange') {
-      const me = state.players.find(p => p.playerId === _myPlayerId);
-      const keepCount = me ? me.influence.filter(c => !c.revealed).length : 2;
-      const selected = new Set();
+    overlay.style.display = 'flex';
 
-      const updateExchangeBtn = () => {
-        const btn = document.getElementById('coupExchangeConfirm');
-        if (btn) btn.disabled = selected.size !== keepCount;
-      };
+    const ownUnrevealed = me ? me.influence.filter(c => !c.revealed) : [];
+    const keepCount     = ownUnrevealed.length;
+    const allOptions    = [...ownUnrevealed.map(c => c.role), ...state.exchangeOptions];
+    const selected      = new Set();
 
-      el.innerHTML = `<div class="coup-section-label">Escolha ${keepCount} carta(s) para manter:</div>
-        <div class="coup-card-picker" id="coupExchangePicker">
-          ${state.exchangeOptions.map((role, i) => `
-            <button class="coup-pick-card selectable" id="coupExOpt${i}" onclick="window._coupToggleExchange(${i})">
-              ${ROLE_ICONS[role]} ${ROLE_LABELS[role]}
-            </button>
-          `).join('')}
-        </div>
-        <button id="coupExchangeConfirm" class="btn" style="margin-top:0.75rem" disabled onclick="window._coupConfirmExchange()">
-          Confirmar troca
-        </button>`;
-
-      window._coupToggleExchange = (i) => {
-        if (selected.has(i)) {
-          selected.delete(i);
-          document.getElementById(`coupExOpt${i}`)?.classList.remove('selected');
-        } else if (selected.size < keepCount) {
-          selected.add(i);
-          document.getElementById(`coupExOpt${i}`)?.classList.add('selected');
-        }
-        updateExchangeBtn();
-      };
-
-      window._coupConfirmExchange = () => {
-        _sendAction({ type: 'exchange-select', keep: [...selected] });
-      };
-      return;
-    }
-
-    // ── My turn: action phase ─────────────────────────────────────────────────
-    if (state.myTurn) {
-      const me = state.players.find(p => p.playerId === _myPlayerId);
-      if (!me) return;
-      const coins = me.coins;
-      const mustCoup = coins >= 10;
-      const others = state.players.filter(p => p.playerId !== _myPlayerId && !p.eliminated);
-
-      if (_pendingActionType) {
-        // Target selection
-        el.innerHTML = `
-          <div class="coup-section-label">Escolha o alvo para <em>${ACTION_LABELS[_pendingActionType]}</em>:</div>
-          <div class="coup-targets">
-            ${others.map(p => `
-              <button class="coup-target-btn" onclick="window._coupSelectTarget('${p.playerId}')">
-                ${esc(p.playerName)} (💰 ${p.coins})
-              </button>
+    const draw = () => {
+      overlay.innerHTML = `
+        <div class="coup-exchange-panel">
+          <div class="coup-exchange-title">Escolha ${keepCount} carta${keepCount !== 1 ? 's' : ''} para manter</div>
+          <div class="coup-exchange-cards">
+            ${allOptions.map((role, i) => `
+              <div class="coup-ex-card ${selected.has(i) ? 'selected' : ''}" data-i="${i}">
+                <img src="${ROLE_IMAGES[role] || '/assets/coup/carta-verso.png'}"
+                     alt="${esc(ROLE_LABELS[role] || role)}">
+                <span>${esc(ROLE_LABELS[role] || role)}</span>
+              </div>
             `).join('')}
           </div>
-          <button class="btn btn-secondary" style="margin-top:0.5rem;font-size:0.85rem" onclick="window._coupCancelTarget()">Cancelar</button>`;
-
-        window._coupSelectTarget = (targetId) => {
-          _sendAction({ type: _pendingActionType, targetId });
-          _pendingActionType = null;
-        };
-        window._coupCancelTarget = () => {
-          _pendingActionType = null;
-          renderActions(_lastState);
-        };
-        return;
-      }
-
-      const actions = [];
-
-      if (!mustCoup) {
-        actions.push({ type: 'income',       label: 'Renda',               desc: '+1 moeda', needsTarget: false });
-        actions.push({ type: 'foreign-aid',  label: 'Ajuda Externa',       desc: '+2 moedas (pode ser bloqueada)', needsTarget: false });
-        actions.push({ type: 'tax',          label: 'Taxa',                desc: '+3 moedas (Duque)', needsTarget: false });
-        if (coins >= 3)
-          actions.push({ type: 'assassinate', label: 'Assassinar',         desc: '-3 moedas, alvo perde carta (Assassino)', needsTarget: true });
-        actions.push({ type: 'steal',        label: 'Roubar',              desc: '+2 moedas do alvo (Capitão)', needsTarget: true });
-        actions.push({ type: 'exchange',     label: 'Trocar Cartas',       desc: 'Troca até 2 cartas com o baralho (Embaixador)', needsTarget: false });
-      }
-
-      if (coins >= 7)
-        actions.push({ type: 'coup',         label: 'Golpe de Estado',     desc: `-7 moedas, alvo perde carta${mustCoup ? ' (OBRIGATÓRIO)' : ''}`, needsTarget: true });
-
-      el.innerHTML = `
-        <div class="coup-section-label">Sua vez — escolha uma ação (💰 ${coins} moedas):</div>
-        <div class="coup-action-grid">
-          ${actions.map(a => `
-            <button class="coup-action-btn ${a.type === 'coup' && mustCoup ? 'mandatory' : ''}"
-              onclick="window._coupTakeAction('${a.type}', ${a.needsTarget})">
-              <span class="ca-label">${a.label}</span>
-              <span class="ca-desc">${a.desc}</span>
-            </button>
-          `).join('')}
-        </div>`;
-
-      window._coupTakeAction = (type, needsTarget) => {
-        if (needsTarget) {
-          _pendingActionType = type;
-          renderActions(_lastState);
-        } else {
-          _sendAction({ type });
-        }
-      };
-      return;
-    }
-
-    // ── Reaction phase ────────────────────────────────────────────────────────
-    if (state.iAmAwaiting && state.phase === 'await-reactions') {
-      const a = state.pendingAction;
-      const canChallenge = !!a?.claimedRole;
-      const blockRoles = BLOCK_ROLES[a?.type] || [];
-      const me = state.players.find(p => p.playerId === _myPlayerId);
-      const isTarget = a?.targetPlayerId === _myPlayerId;
-      const canBlock = blockRoles.length > 0 &&
-        (a?.type === 'foreign-aid' || isTarget);
-
-      el.innerHTML = `
-        <div class="coup-section-label">Como você reage?</div>
-        <div class="coup-reaction-btns">
-          <button class="btn btn-secondary" onclick="window._coupReact('pass')">Passar</button>
-          ${canChallenge ? `<button class="btn coup-btn-challenge" onclick="window._coupReact('challenge')">Contestar</button>` : ''}
-          ${canBlock ? blockRoles.map(role => `
-            <button class="btn coup-btn-block" onclick="window._coupBlock('${role}')">
-              Bloquear como ${ROLE_LABELS[role]}
-            </button>`).join('') : ''}
-        </div>`;
-
-      window._coupReact = (type) => _sendAction({ type });
-      window._coupBlock = (claimedRole) => _sendAction({ type: 'block', claimedRole });
-      return;
-    }
-
-    if (state.iAmAwaiting && state.phase === 'await-block-reactions') {
-      const b = state.pendingBlock;
-      el.innerHTML = `
-        <div class="coup-section-label">
-          <strong>${esc(b?.blockerName)}</strong> alega ser <em>${ROLE_LABELS[b?.claimedRole]}</em> para bloquear. O que você faz?
+          <button class="coup-exchange-confirm" id="coupExConfirm"
+            ${selected.size !== keepCount ? 'disabled' : ''}>
+            Confirmar
+          </button>
         </div>
-        <div class="coup-reaction-btns">
-          <button class="btn btn-secondary" onclick="window._coupReact('pass')">Aceitar bloqueio</button>
-          <button class="btn coup-btn-challenge" onclick="window._coupReact('challenge')">Contestar bloqueio</button>
-        </div>`;
+      `;
 
-      window._coupReact = (type) => _sendAction({ type });
-      return;
-    }
+      overlay.querySelectorAll('.coup-ex-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const i = parseInt(card.dataset.i);
+          if (selected.has(i)) {
+            selected.delete(i);
+          } else if (selected.size < keepCount) {
+            selected.add(i);
+          }
+          draw();
+        });
+      });
 
-    // Waiting for others
-    if (!state.myTurn && !state.iAmAwaiting && !state.mustLoseInfluence) {
-      el.innerHTML = `<div class="coup-waiting-msg">Aguardando outros jogadores...</div>`;
-    }
+      const confirmBtn = document.getElementById('coupExConfirm');
+      if (confirmBtn && !confirmBtn.disabled) {
+        confirmBtn.addEventListener('click', () => {
+          _sendAction && _sendAction({ type: 'ambassador-choose', keep: [...selected] });
+        });
+      }
+    };
+
+    draw();
   }
 
-  function renderLog(state) {
-    const el = document.getElementById('coupLog');
-    if (!el || !state.log?.length) return;
-    el.innerHTML = `
-      <div class="coup-log-title">Histórico</div>
-      ${[...state.log].reverse().map(e => `<div class="coup-log-entry">${esc(e.message)}</div>`).join('')}
-    `;
-  }
+  // ── Error / toast ─────────────────────────────────────────────────────────────
 
-  // ── Error handler ─────────────────────────────────────────────────────────────
   function onError(message) {
-    const el = document.getElementById('coupActions');
-    if (!el) return;
-    const errEl = document.createElement('div');
-    errEl.className = 'coup-error';
-    errEl.textContent = message;
-    el.prepend(errEl);
-    setTimeout(() => errEl.remove(), 3000);
+    showToast(message);
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('coupToast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add('visible');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toast.classList.remove('visible'), 2500);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
+
   function esc(str) {
-    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   window.GameModule = { init, render, onError };
