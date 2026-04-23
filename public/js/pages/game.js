@@ -19,6 +19,7 @@
   socket.on('room:joined', data => {
     if (data.status !== 'playing') window.location.href = `/lobby/${roomId}`;
     if (data.playerId) sessionStorage.setItem('playerId', data.playerId);
+    sessionStorage.setItem('isHost', data.isHost ? '1' : '0');
   });
 
   socket.on('game:start', ({ gameId }) => loadGame(gameId));
@@ -63,7 +64,8 @@
     script.onload = () => {
       gameModule = window.GameModule;
       if (gameModule?.init) {
-        gameModule.init(document.getElementById('gameArea'), myPlayerId, myPlayerName);
+        const isHost = sessionStorage.getItem('isHost') === '1';
+        gameModule.init(document.getElementById('gameArea'), myPlayerId, myPlayerName, isHost);
       }
       document.getElementById('loadingScreen').style.display = 'none';
       document.getElementById('gameContainer').style.display = '';

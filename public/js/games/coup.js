@@ -15,38 +15,48 @@
 
   // ── Module state ──────────────────────────────────────────────────────────────
 
-  let _el          = null;
-  let _myPlayerId  = null;
-  let _sendAction  = null;
-  let _lastState   = null;
-  let _longPressTimer = null;
+  let _el             = null;
+  let _myPlayerId     = null;
+  let _isHost         = false;
+  let _sendAction     = null;
+  let _lastState      = null;
+  let _longPressTimer = null;        // deck long press
+  let _resetPressTimer = null;       // reset button long press
+  let _cardPressTimer = null;        // card hold timer
+  let _cardPressIdx   = null;        // which card is being held
+  let _longPressFired = false;       // whether current hold became a long press
+  let _flippedCards      = new Set();  // indices of cards currently showing face
+  const _flippedRoles    = {};         // idx → role when card was flipped (detects reset)
+  const _tapState        = {};         // per-card: { count, timer }
 
   // ── Init ──────────────────────────────────────────────────────────────────────
 
-  function init(el, myPlayerId) {
+  function init(el, myPlayerId, myPlayerName, isHost) {
     _el         = el;
     _myPlayerId = myPlayerId;
+    _isHost     = !!isHost;
 
     _el.innerHTML = `
       <div class="coup-layout">
 
-        <!-- TOP: inverted coin counter (visible to opponents across table) -->
-        <div class="coup-top-bar">
-          <div class="coup-top-counter">
-            <span class="coup-counter-num" id="coupTopNum">0</span>
-            <img src="/assets/coup/moeda.png" class="coup-counter-coin" alt="moeda">
+        <!-- HEADER: back, reset (host only), help -->
+        <div class="coup-header">
+          <div class="coup-header-left">
+            <a href="/"><img src="/assets/coup/btn-voltar.png" class="coup-btn-icon" alt="Voltar"></a>
+            ${_isHost ? `<img src="/assets/coup/btn-reset.png" class="coup-btn-icon" id="coupResetBtn" alt="Reiniciar">` : ''}
+          </div>
+          <div class="coup-header-right">
+            <img src="/assets/coup/btn-ajuda.png" class="coup-btn-icon" id="coupHelpBtn" alt="Ajuda">
           </div>
         </div>
 
-        <!-- CENTER: shared bank and deck -->
+        <!-- CENTER: bank (coins) and deck -->
         <div class="coup-center">
-          <div class="coup-bank-area">
-            <img src="/assets/coup/monte-moedas.png" class="coup-pile-img" id="coupPileImg" alt="banco de moedas">
-            <div class="coup-resource-count" id="coupBankCount">0</div>
+          <div class="coup-bank-area" id="coupPileImg">
+            <img src="/assets/coup/monte-moedas.png" class="coup-center-img" alt="Banco de moedas">
           </div>
-          <div class="coup-deck-area">
-            <img src="/assets/coup/baralho.png" class="coup-deck-img" id="coupDeckImg" alt="baralho">
-            <div class="coup-resource-count" id="coupDeckCount">0</div>
+          <div class="coup-deck-area" id="coupDeckImg">
+            <img src="/assets/coup/baralho.png" class="coup-center-img" alt="Baralho">
           </div>
         </div>
 
@@ -54,18 +64,13 @@
         <div class="coup-bottom-bar">
           <div class="coup-own-cards" id="coupOwnCards"></div>
           <div class="coup-own-counter" id="coupOwnCounter">
-            <img src="/assets/coup/moeda.png" class="coup-counter-coin" alt="moeda">
+            <img src="/assets/coup/moeda.png" class="coup-counter-coin-img" alt="">
             <span class="coup-counter-num" id="coupBottomNum">0</span>
           </div>
         </div>
 
         <!-- Exchange overlay (ambassador action) -->
         <div class="coup-exchange-overlay" id="coupExchangeOverlay" style="display:none"></div>
-
-        <!-- Card action modal -->
-        <div class="coup-modal-overlay" id="coupModalOverlay" style="display:none">
-          <div class="coup-modal" id="coupModal"></div>
-        </div>
 
         <!-- Toast feedback -->
         <div class="coup-toast" id="coupToast"></div>
@@ -76,22 +81,57 @@
     setupBankInteraction();
     setupDeckInteraction();
     setupCoinReturn();
+    setupHeaderButtons();
   }
 
   // ── Interaction setup ─────────────────────────────────────────────────────────
 
+  function setupHeaderButtons() {
+    // ── Reset: apenas host, requer segurar 700ms ───────────────────────────────
+    const resetBtn = document.getElementById('coupResetBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('contextmenu', e => e.preventDefault());
+
+      resetBtn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        resetBtn.setPointerCapture(e.pointerId);
+        _resetPressTimer = setTimeout(() => {
+          _resetPressTimer = null;
+          _flippedCards.clear();
+          Object.keys(_flippedRoles).forEach(k => delete _flippedRoles[k]);
+          _sendAction && _sendAction({ type: 'reset' });
+          showToast('Jogo reiniciado');
+        }, 700);
+      });
+
+      resetBtn.addEventListener('pointerup', e => {
+        e.preventDefault();
+        if (_resetPressTimer !== null) {
+          clearTimeout(_resetPressTimer);
+          _resetPressTimer = null;
+          showToast('Segure para reiniciar o jogo');
+        }
+      });
+
+      resetBtn.addEventListener('pointercancel', () => {
+        if (_resetPressTimer !== null) { clearTimeout(_resetPressTimer); _resetPressTimer = null; }
+      });
+    }
+
+    // ── Ajuda: abre o manual oficial do Coup ──────────────────────────────────
+    document.getElementById('coupHelpBtn')?.addEventListener('click', () => {
+      window.open('https://www.fclar.unesp.br/Home/Biblioteca/jogos-coup-manual.pdf', '_blank');
+    });
+  }
+
   function setupBankInteraction() {
-    const pile = document.getElementById('coupPileImg');
-    if (!pile) return;
-    pile.addEventListener('click', () => {
+    document.getElementById('coupPileImg')?.addEventListener('click', () => {
       _sendAction && _sendAction({ type: 'take-coin' });
     });
   }
 
   function setupCoinReturn() {
-    const counter = document.getElementById('coupOwnCounter');
-    if (!counter) return;
-    counter.addEventListener('click', () => {
+    document.getElementById('coupOwnCounter')?.addEventListener('click', () => {
       _sendAction && _sendAction({ type: 'return-coin' });
     });
   }
@@ -100,41 +140,30 @@
     const deck = document.getElementById('coupDeckImg');
     if (!deck) return;
 
-    // Prevent browser context menu on long press
     deck.addEventListener('contextmenu', e => e.preventDefault());
 
-    function startPress(e) {
+    deck.addEventListener('pointerdown', e => {
       e.preventDefault();
+      deck.setPointerCapture(e.pointerId);
       _longPressTimer = setTimeout(() => {
         _longPressTimer = null;
         _sendAction && _sendAction({ type: 'ambassador-start' });
         showToast('Segurando o baralho...');
       }, 700);
-    }
+    });
 
-    function endPress(e) {
+    deck.addEventListener('pointerup', e => {
       e.preventDefault();
       if (_longPressTimer !== null) {
         clearTimeout(_longPressTimer);
         _longPressTimer = null;
-        // Short tap: show deck count
         if (_lastState) showToast(`${_lastState.deckCount} carta${_lastState.deckCount !== 1 ? 's' : ''} no baralho`);
       }
-    }
+    });
 
-    function cancelPress() {
-      if (_longPressTimer !== null) {
-        clearTimeout(_longPressTimer);
-        _longPressTimer = null;
-      }
-    }
-
-    deck.addEventListener('touchstart',  startPress,  { passive: false });
-    deck.addEventListener('touchend',    endPress,    { passive: false });
-    deck.addEventListener('touchcancel', cancelPress);
-    deck.addEventListener('mousedown',   startPress);
-    deck.addEventListener('mouseup',     endPress);
-    deck.addEventListener('mouseleave',  cancelPress);
+    deck.addEventListener('pointercancel', () => {
+      if (_longPressTimer !== null) { clearTimeout(_longPressTimer); _longPressTimer = null; }
+    });
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -144,18 +173,12 @@
     _lastState  = state;
 
     const me = state.players.find(p => p.playerId === _myPlayerId);
-
-    // Update counters
     const coins = me ? me.coins : 0;
-    const topNum    = document.getElementById('coupTopNum');
-    const bottomNum = document.getElementById('coupBottomNum');
-    const bankCount = document.getElementById('coupBankCount');
-    const deckCount = document.getElementById('coupDeckCount');
 
-    if (topNum)    topNum.textContent    = coins;
-    if (bottomNum) bottomNum.textContent = coins;
-    if (bankCount) bankCount.textContent = state.bankCoins;
-    if (deckCount) deckCount.textContent = state.deckCount;
+    setText('coupTopNum',    coins);
+    setText('coupBottomNum', coins);
+    setText('coupBankCount', state.bankCoins);
+    setText('coupDeckCount', state.deckCount);
 
     renderOwnCards(me);
     renderExchange(state, me);
@@ -173,88 +196,147 @@
 
     el.innerHTML = '';
 
+    // Se o role de uma carta virada mudou, é uma nova carta (reset) — vira de volta
     me.influence.forEach((card, idx) => {
+      if (_flippedCards.has(idx) && !card.revealed && _flippedRoles[idx] && _flippedRoles[idx] !== card.role) {
+        _flippedCards.delete(idx);
+        delete _flippedRoles[idx];
+      }
+    });
+
+    me.influence.forEach((card, idx) => {
+      // Permanently revealed cards always show face-up
+      if (card.revealed) _flippedCards.add(idx);
+      const isFlipped = _flippedCards.has(idx);
+
       const slot = document.createElement('div');
       slot.className = 'coup-card-slot' + (card.revealed ? ' is-revealed' : '');
 
-      const img = document.createElement('img');
-      img.className = 'coup-card-img';
-      img.alt       = ROLE_LABELS[card.role] || 'carta';
+      // Flip container
+      const inner = document.createElement('div');
+      inner.className = 'coup-card-inner' + (isFlipped ? ' flipped' : '') + (card.revealed ? ' instant' : '');
+      inner.id = `coupCardInner${idx}`;
 
+      // Front face: card back image
+      const front = document.createElement('div');
+      front.className = 'coup-card-face coup-card-front';
+      const frontImg = document.createElement('img');
+      frontImg.src       = '/assets/coup/carta-verso.png';
+      frontImg.className = 'coup-card-front-img';
+      frontImg.alt       = 'carta';
+      front.appendChild(frontImg);
+
+      // Back face: role image
+      const back = document.createElement('div');
+      back.className = 'coup-card-face coup-card-back';
+      const backImg = document.createElement('img');
+      backImg.src = ROLE_IMAGES[card.role] || '/assets/coup/carta-verso.png';
+      backImg.className = 'coup-card-img';
+      backImg.alt = ROLE_LABELS[card.role] || card.role;
+      back.appendChild(backImg);
+
+      inner.appendChild(front);
+      inner.appendChild(back);
+      slot.appendChild(inner);
+
+      // ── Card interactions ─────────────────────────────────────────────────
+      // Skip interaction on permanently-revealed (dead) cards
       if (card.revealed) {
-        img.src = ROLE_IMAGES[card.role] || '/assets/coup/carta-verso.png';
-
-        // Return-to-deck button
-        const btn = document.createElement('button');
-        btn.className   = 'coup-return-btn';
-        btn.textContent = '↩';
-        btn.title       = 'Devolver ao baralho';
-        btn.addEventListener('click', e => {
-          e.stopPropagation();
-          showReturnDialog(idx, card.role);
-        });
-        slot.appendChild(img);
-        slot.appendChild(btn);
-      } else {
-        img.src = '/assets/coup/carta-verso.png';
-        slot.addEventListener('click', () => showRevealDialog(idx, card.role));
-        slot.appendChild(img);
+        el.appendChild(slot);
+        return;
       }
+
+      slot.addEventListener('contextmenu', e => e.preventDefault());
+
+      if (!_tapState[idx]) _tapState[idx] = { count: 0, timer: null };
+
+      function onPressStart() {
+        _longPressFired = false;
+        _cardPressIdx   = idx;
+
+        // Hold timer only fires when card is already face-up
+        if (_flippedCards.has(idx)) {
+          _cardPressTimer = setTimeout(() => {
+            _cardPressTimer = null;
+            _longPressFired = true;
+            // Cancel any pending tap
+            if (_tapState[idx].timer) {
+              clearTimeout(_tapState[idx].timer);
+              _tapState[idx] = { count: 0, timer: null };
+            }
+            _sendAction && _sendAction({ type: 'reveal-card', cardIndex: idx });
+            _flippedCards.delete(idx);
+            showToast('Influência perdida');
+          }, 700);
+        }
+      }
+
+      function onPressEnd() {
+        if (_cardPressIdx !== idx) return;
+
+        if (_longPressFired) {
+          _longPressFired = false;
+          return;
+        }
+
+        if (_cardPressTimer !== null) {
+          clearTimeout(_cardPressTimer);
+          _cardPressTimer = null;
+        }
+
+        // Double-tap detection: register tap and wait 280ms for a second
+        const t = _tapState[idx];
+        t.count++;
+        if (t.timer) clearTimeout(t.timer);
+        t.timer = setTimeout(() => {
+          const n = t.count;
+          t.count = 0;
+          t.timer = null;
+
+          if (n >= 2) {
+            // Double tap → exchange card with deck
+            _sendAction && _sendAction({ type: 'return-card-to-deck', cardIndex: idx });
+            _flippedCards.delete(idx);
+            showToast('Carta trocada com o baralho');
+          } else {
+            // Single tap → toggle flip
+            toggleCardFlip(idx);
+          }
+        }, 280);
+      }
+
+      function onPressCancel() {
+        if (_cardPressTimer !== null) { clearTimeout(_cardPressTimer); _cardPressTimer = null; }
+        _longPressFired = false;
+      }
+
+      slot.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        slot.setPointerCapture(e.pointerId); // keep events even if pointer drifts out
+        onPressStart();
+      });
+      slot.addEventListener('pointerup',     e => { e.preventDefault(); onPressEnd();    });
+      slot.addEventListener('pointercancel', onPressCancel);
 
       el.appendChild(slot);
     });
   }
 
-  // ── Dialogs ───────────────────────────────────────────────────────────────────
+  function toggleCardFlip(idx) {
+    const inner = document.getElementById(`coupCardInner${idx}`);
+    if (!inner) return;
 
-  function showRevealDialog(cardIdx, role) {
-    openModal(`
-      <img src="${ROLE_IMAGES[role] || '/assets/coup/carta-verso.png'}"
-           class="coup-modal-card-img" alt="${esc(ROLE_LABELS[role] || role)}">
-      <div class="coup-modal-role">${esc(ROLE_LABELS[role] || role)}</div>
-      <div class="coup-modal-btns">
-        <button class="coup-modal-btn coup-modal-confirm" id="coupModalPrimary">Revelar</button>
-        <button class="coup-modal-btn coup-modal-cancel"  id="coupModalSecondary">Cancelar</button>
-      </div>
-    `, () => {
-      _sendAction && _sendAction({ type: 'reveal-card', cardIndex: cardIdx });
-    });
-  }
-
-  function showReturnDialog(cardIdx, role) {
-    openModal(`
-      <img src="${ROLE_IMAGES[role] || '/assets/coup/carta-verso.png'}"
-           class="coup-modal-card-img" alt="${esc(ROLE_LABELS[role] || role)}">
-      <div class="coup-modal-role">${esc(ROLE_LABELS[role] || role)}</div>
-      <p class="coup-modal-text">Devolver ao baralho e comprar nova carta?</p>
-      <div class="coup-modal-btns">
-        <button class="coup-modal-btn coup-modal-confirm" id="coupModalPrimary">Devolver</button>
-        <button class="coup-modal-btn coup-modal-cancel"  id="coupModalSecondary">Cancelar</button>
-      </div>
-    `, () => {
-      _sendAction && _sendAction({ type: 'return-card-to-deck', cardIndex: cardIdx });
-    });
-  }
-
-  function openModal(html, onConfirm) {
-    const overlay = document.getElementById('coupModalOverlay');
-    const modal   = document.getElementById('coupModal');
-    if (!overlay || !modal) return;
-
-    modal.innerHTML = html;
-    overlay.style.display = 'flex';
-
-    document.getElementById('coupModalPrimary')?.addEventListener('click', () => {
-      onConfirm();
-      closeModal();
-    });
-    document.getElementById('coupModalSecondary')?.addEventListener('click', closeModal);
-    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); }, { once: true });
-  }
-
-  function closeModal() {
-    const overlay = document.getElementById('coupModalOverlay');
-    if (overlay) overlay.style.display = 'none';
+    if (_flippedCards.has(idx)) {
+      _flippedCards.delete(idx);
+      delete _flippedRoles[idx];
+      inner.classList.remove('flipped');
+    } else {
+      _flippedCards.add(idx);
+      // Guarda o role atual para detectar reset futuro
+      const card = _lastState?.players?.find(p => p.playerId === _myPlayerId)?.influence?.[idx];
+      if (card?.role) _flippedRoles[idx] = card.role;
+      inner.classList.add('flipped');
+    }
   }
 
   // ── Ambassador exchange ───────────────────────────────────────────────────────
@@ -298,11 +380,7 @@
       overlay.querySelectorAll('.coup-ex-card').forEach(card => {
         card.addEventListener('click', () => {
           const i = parseInt(card.dataset.i);
-          if (selected.has(i)) {
-            selected.delete(i);
-          } else if (selected.size < keepCount) {
-            selected.add(i);
-          }
+          selected.has(i) ? selected.delete(i) : (selected.size < keepCount && selected.add(i));
           draw();
         });
       });
@@ -311,6 +389,8 @@
       if (confirmBtn && !confirmBtn.disabled) {
         confirmBtn.addEventListener('click', () => {
           _sendAction && _sendAction({ type: 'ambassador-choose', keep: [...selected] });
+          // Reset flip states after exchange
+          _flippedCards.clear();
         });
       }
     };
@@ -320,9 +400,7 @@
 
   // ── Error / toast ─────────────────────────────────────────────────────────────
 
-  function onError(message) {
-    showToast(message);
-  }
+  function onError(message) { showToast(message); }
 
   function showToast(msg) {
     const toast = document.getElementById('coupToast');
@@ -334,6 +412,11 @@
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
+
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
 
   function esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

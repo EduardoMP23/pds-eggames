@@ -1,110 +1,108 @@
-/* ── Coup Physical Simulator ─────────────────────────────────────────────────
-   Mobile-first portrait layout simulating the physical game components.
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ── Coup — redesign ─────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Jeju+Myeongjo&display=swap');
+
+/* Hide generic topbar — Coup uses its own header */
+body:has(.coup-layout) .game-topbar {
+  display: none;
+}
+
+/* ── Full-screen gradient background ────────────────────────────────────── */
+
+body:has(.coup-layout) {
+  background: linear-gradient(135deg, #90d0bc 0%, #e2cda0 100%);
+  height: 100dvh;
+  overflow: hidden;
+}
 
 .coup-layout {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
-  background: #111827;
-  overflow: hidden;
-  position: relative;
+  height: 100dvh;
+  background: linear-gradient(135deg, #90d0bc 0%, #e2cda0 100%);
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
+  position: relative;
+  overflow: hidden;
 }
 
-/* ── Top bar: inverted coin counter (for opponents across the table) ────────── */
+/* ── Header ─────────────────────────────────────────────────────────────── */
 
-.coup-top-bar {
+.coup-header {
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 10px 16px;
-  background: rgba(0, 0, 0, 0.35);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  transform: rotate(180deg);
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 14px 0;
   flex-shrink: 0;
-  min-height: 56px;
 }
 
-.coup-top-counter {
+.coup-header-left {
   display: flex;
-  align-items: center;
   gap: 8px;
 }
 
-/* ── Center: shared bank and deck ───────────────────────────────────────────── */
+.coup-btn-icon {
+  width: 46px;
+  height: 46px;
+  display: block;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  transition: transform 0.08s;
+}
+
+.coup-btn-icon:active {
+  transform: scale(0.88);
+}
+
+/* ── Center: coins + deck ─────────────────────────────────────────────── */
 
 .coup-center {
-  flex: 1;
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 20px 28px;
+  padding: 16px 24px;
   min-height: 0;
+  overflow: hidden;
 }
+
+/* ── Bank & Deck (image-based) ───────────────────────────────────────── */
 
 .coup-bank-area,
 .coup-deck-area {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 10px;
-}
-
-/* Bank (coin pile) — clickable to take 1 coin */
-.coup-pile-img {
-  width: min(150px, 40vw);
-  height: auto;
-  object-fit: contain;
+  justify-content: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.08s;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
 }
 
-.coup-pile-img:active {
-  transform: scale(0.9);
+.coup-bank-area:active,
+.coup-deck-area:active {
+  transform: scale(0.92);
 }
 
-/* Deck — short tap = count, long press = ambassador exchange */
-.coup-deck-img {
-  width: min(130px, 35vw);
+.coup-center-img {
+  width: min(140px, 36vw);
   height: auto;
   object-fit: contain;
-  cursor: pointer;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.22));
+  display: block;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.08s;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
 }
 
-.coup-deck-img:active {
-  transform: scale(0.9);
-}
-
-/* Resource counters (bank coins / deck cards) */
-.coup-resource-count {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #f0c040;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 14px;
-  padding: 3px 12px;
-  letter-spacing: 0.02em;
-}
-
-/* ── Bottom bar: player cards + own coin counter ────────────────────────────── */
+/* ── Bottom bar ──────────────────────────────────────────────────────── */
 
 .coup-bottom-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px 18px;
-  background: rgba(0, 0, 0, 0.35);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  align-items: flex-end;
+  padding: 10px 16px max(20px, env(safe-area-inset-bottom, 20px));
   flex-shrink: 0;
   gap: 14px;
 }
@@ -115,27 +113,65 @@
   flex: 1;
 }
 
-/* ── Influence card slots ────────────────────────────────────────────────────── */
+/* ── Influence card slots ─────────────────────────────────────────────── */
 
 .coup-card-slot {
   position: relative;
-  width: min(96px, 25vw);
-  height: min(134px, 35vw);
-  border-radius: 10px;
-  overflow: hidden;
-  cursor: pointer;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  width: min(122px, 30vw);
+  height: min(170px, 42vw);
   flex-shrink: 0;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.15s, transform 0.08s;
+  touch-action: none;
+  perspective: 700px;
+  border-radius: 12px;
 }
 
-.coup-card-slot:active {
-  transform: scale(0.94);
+/* Flip container */
+.coup-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.45s ease;
+  border-radius: 12px;
 }
 
-.coup-card-slot.is-revealed {
-  border-color: rgba(180, 40, 40, 0.6);
+.coup-card-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.coup-card-inner.instant {
+  transition: none;
+}
+
+/* Both faces */
+.coup-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Front face: card back image (face-down) */
+.coup-card-front {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.30);
+}
+
+.coup-card-front-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 12px;
+}
+
+/* Back face: role image (face-up when flipped) */
+.coup-card-back {
+  transform: rotateY(180deg);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.30);
 }
 
 .coup-card-img {
@@ -145,153 +181,66 @@
   display: block;
 }
 
-.coup-card-slot.is-revealed .coup-card-img {
-  filter: grayscale(0.5) brightness(0.6);
+/* Dead card */
+.coup-card-slot.is-revealed .coup-card-back .coup-card-img {
+  filter: grayscale(0.7) brightness(0.5);
 }
 
-/* Return-to-deck button on revealed cards */
-.coup-return-btn {
+.coup-card-slot.is-revealed .coup-card-back::after {
+  content: '✕';
   position: absolute;
-  bottom: 5px;
-  right: 5px;
-  background: rgba(30, 60, 180, 0.92);
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  font-size: 15px;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  line-height: 1;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.12s;
+  font-size: 2.5rem;
+  color: rgba(220, 50, 50, 0.75);
+  font-weight: 900;
+  pointer-events: none;
 }
 
-.coup-return-btn:active {
-  background: rgba(20, 40, 140, 0.95);
-}
-
-/* ── Own coin counter (bottom right) — clickable to return 1 coin ────────────── */
+/* ── Coin counter (bottom-right) ─────────────────────────────────────── */
 
 .coup-own-counter {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
   cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 10px;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.12s;
   flex-shrink: 0;
+  margin-bottom: 10px;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.08s;
 }
 
 .coup-own-counter:active {
-  background: rgba(255, 255, 255, 0.08);
+  transform: scale(0.92);
 }
 
-.coup-counter-coin {
-  width: min(44px, 12vw);
-  height: auto;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+.coup-counter-coin-img {
+  width: min(58px, 15vw);
+  height: min(58px, 15vw);
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
 }
 
 .coup-counter-num {
-  font-size: 1.5rem;
-  font-weight: 900;
-  color: #f0c040;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
-  line-height: 1;
-}
-
-/* ── Card action modal ────────────────────────────────────────────────────────── */
-
-.coup-modal-overlay {
   position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.78);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
+  font-family: 'Jeju Myeongjo', serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  pointer-events: none;
 }
 
-.coup-modal {
-  background: #1c2333;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  max-width: 290px;
-  width: 85%;
-}
-
-.coup-modal-card-img {
-  width: 100px;
-  height: 140px;
-  object-fit: cover;
-  border-radius: 10px;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-}
-
-.coup-modal-role {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #fff;
-}
-
-.coup-modal-text {
-  font-size: 0.88rem;
-  color: rgba(255, 255, 255, 0.65);
-  text-align: center;
-  margin: 0;
-}
-
-.coup-modal-btns {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-}
-
-.coup-modal-btn {
-  flex: 1;
-  padding: 11px 8px;
-  border-radius: 10px;
-  border: none;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.12s;
-}
-
-.coup-modal-btn:active {
-  opacity: 0.75;
-}
-
-.coup-modal-confirm {
-  background: #2955b8;
-  color: #fff;
-}
-
-.coup-modal-cancel {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.78);
-}
-
-/* ── Ambassador exchange overlay ─────────────────────────────────────────────── */
+/* ── Ambassador exchange overlay ─────────────────────────────────────── */
 
 .coup-exchange-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0,0,0,0.88);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -299,8 +248,8 @@
 }
 
 .coup-exchange-panel {
-  background: #1c2333;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #2a1e00;
+  border: 2px solid rgba(255,255,255,0.15);
   border-radius: 18px;
   padding: 22px;
   display: flex;
@@ -333,7 +282,7 @@
   cursor: pointer;
   padding: 7px;
   border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255,255,255,0.15);
   transition: border-color 0.12s, background 0.12s;
   -webkit-tap-highlight-color: transparent;
 }
@@ -347,14 +296,14 @@
 
 .coup-ex-card span {
   font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255,255,255,0.75);
   font-weight: 600;
   text-align: center;
 }
 
 .coup-ex-card.selected {
   border-color: #4a90e2;
-  background: rgba(74, 144, 226, 0.18);
+  background: rgba(74,144,226,0.2);
 }
 
 .coup-exchange-confirm {
@@ -368,27 +317,24 @@
   cursor: pointer;
   width: 100%;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.12s;
 }
 
-.coup-exchange-confirm:active {
-  background: #1e44a0;
-}
+.coup-exchange-confirm:active { background: #1e44a0; }
 
 .coup-exchange-confirm:disabled {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.28);
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.3);
   cursor: not-allowed;
 }
 
-/* ── Toast notification ──────────────────────────────────────────────────────── */
+/* ── Toast ───────────────────────────────────────────────────────────── */
 
 .coup-toast {
-  position: absolute;
-  bottom: calc(min(134px, 35vw) + 40px);
+  position: fixed;
+  bottom: calc(min(170px, 42vw) + 50px);
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(10, 10, 20, 0.9);
+  background: rgba(10,8,0,0.88);
   color: #fff;
   border-radius: 20px;
   padding: 9px 22px;
@@ -402,9 +348,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   z-index: 200;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255,255,255,0.12);
 }
 
-.coup-toast.visible {
-  opacity: 1;
-}
+.coup-toast.visible { opacity: 1; }

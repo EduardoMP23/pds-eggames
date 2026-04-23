@@ -123,7 +123,6 @@ function applyAction(state, action, playerId) {
       const { cardIndex } = action;
       const card = player.influence[cardIndex];
       if (!card)          return { error: 'Carta inválida' };
-      if (!card.revealed) return { error: 'Só é possível devolver cartas reveladas' };
       if (state.deck.length === 0) return { error: 'Baralho vazio' };
 
       state.deck.push(card.role);
@@ -172,6 +171,18 @@ function applyAction(state, action, playerId) {
       state.deck = shuffle(state.deck);
       player.exchangeOptions = null;
       return {};
+    }
+
+    case 'reset': {
+      const players = state.players.map(p => ({ playerId: p.playerId, playerName: p.playerName }));
+      const fresh   = initState(players);
+      state.players   = fresh.players;
+      state.deck      = fresh.deck;
+      state.bankCoins = fresh.bankCoins;
+      state.status    = fresh.status;
+      state.winner    = fresh.winner;
+      state.winnerName = fresh.winnerName;
+      return { events: ['Jogo reiniciado pelo administrador'] };
     }
 
     default:
