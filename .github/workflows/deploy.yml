@@ -20,6 +20,10 @@ jobs:
           script: |
             set -e
 
+            # Trust GitHub's host key (prevents "Host key verification failed")
+            mkdir -p ~/.ssh
+            ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts 2>/dev/null
+
             APP_DIR="${{ secrets.APP_DIR }}"
             REPO_URL="${{ secrets.REPO_URL }}"
 
