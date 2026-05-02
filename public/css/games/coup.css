@@ -185,11 +185,30 @@ body:has(.coup-layout) {
   pointer-events: none;
 }
 
+/* Coin counter inside each opponent group */
+.coup-opp-counter {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.coup-opp-counter .coup-counter-coin-img {
+  width: min(32px, 8vw);
+  height: min(32px, 8vw);
+}
+
+.coup-opp-counter .coup-counter-num {
+  font-size: 0.85rem;
+}
+
 /* ── Bottom bar ──────────────────────────────────────────────────────── */
 
 .coup-bottom-bar {
   display: flex;
   align-items: flex-end;
+  justify-content: center;
   padding: 10px 16px max(20px, env(safe-area-inset-bottom, 20px));
   flex-shrink: 0;
   gap: 14px;
@@ -198,7 +217,6 @@ body:has(.coup-layout) {
 .coup-own-cards {
   display: flex;
   gap: 14px;
-  flex: 1;
 }
 
 /* ── Influence card slots ─────────────────────────────────────────────── */

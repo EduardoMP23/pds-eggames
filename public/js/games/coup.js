@@ -177,6 +177,17 @@
 
   function render(state, sendAction) {
     _sendAction = sendAction;
+
+    // Detect who gained a coin since last state and animate
+    if (_lastState) {
+      for (const player of state.players) {
+        const prev = _lastState.players.find(p => p.playerId === player.playerId);
+        if (prev && player.coins > prev.coins) {
+          animateCoinFly(player.playerId);
+        }
+      }
+    }
+
     _lastState  = state;
 
     const me = state.players.find(p => p.playerId === _myPlayerId);
@@ -369,6 +380,7 @@
 
       const group = document.createElement('div');
       group.className = 'coup-opp-group';
+      group.dataset.playerId = opp.playerId;
       group.style.left      = x + '%';
       group.style.top       = y + '%';
       group.style.transform = `translate(-50%, -50%) rotate(${angles[i]}deg)`;
@@ -390,7 +402,25 @@
         cardsEl.appendChild(cardEl);
       });
 
+      // Coin counter — counter-rotated so the number stays upright
+      const counter = document.createElement('div');
+      counter.className = 'coup-opp-counter';
+      counter.style.transform = `rotate(${-angles[i]}deg)`;
+
+      const coinImg = document.createElement('img');
+      coinImg.src = '/assets/coup/moeda.png';
+      coinImg.className = 'coup-counter-coin-img';
+      coinImg.alt = '';
+
+      const coinNum = document.createElement('span');
+      coinNum.className = 'coup-counter-num';
+      coinNum.textContent = opp.coins ?? 0;
+
+      counter.appendChild(coinImg);
+      counter.appendChild(coinNum);
+
       group.appendChild(cardsEl);
+      group.appendChild(counter);
       el.appendChild(group);
     });
   }
@@ -467,6 +497,52 @@
     };
 
     draw();
+  }
+
+  // ── Coin fly animation ────────────────────────────────────────────────────────
+
+  function animateCoinFly(playerId) {
+    const tableWrapper = document.querySelector('.coup-table-wrapper');
+    if (!tableWrapper) return;
+
+    // Destination: own counter or the opponent's counter on the table
+    let destEl;
+    if (playerId === _myPlayerId) {
+      destEl = document.getElementById('coupOwnCounter');
+    } else {
+      destEl = document.querySelector(`.coup-opp-group[data-player-id="${playerId}"] .coup-opp-counter`);
+    }
+    if (!destEl) return;
+
+    const fromRect = tableWrapper.getBoundingClientRect();
+    const toRect   = destEl.getBoundingClientRect();
+
+    const startX = fromRect.left + fromRect.width  / 2;
+    const startY = fromRect.top  + fromRect.height / 2;
+    const dx     = (toRect.left  + toRect.width  / 2) - startX;
+    const dy     = (toRect.top   + toRect.height / 2) - startY;
+
+    const coin = document.createElement('img');
+    coin.src = '/assets/coup/moeda.png';
+    coin.style.cssText = `
+      position: fixed;
+      width: 38px;
+      height: 38px;
+      left: ${startX}px;
+      top: ${startY}px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 999;
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,0.45));
+    `;
+    document.body.appendChild(coin);
+
+    coin.animate([
+      { transform: 'translate(-50%,-50%) scale(1)',                                                        opacity: 1,    offset: 0    },
+      { transform: `translate(calc(-50% + ${dx * 0.45}px), calc(-50% + ${dy * 0.3 - 40}px)) scale(1.2)`, opacity: 1,    offset: 0.35 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.75)`,                   opacity: 0.75, offset: 1    },
+    ], { duration: 2000, easing: 'ease-in-out', fill: 'forwards' })
+      .finished.then(() => coin.remove());
   }
 
   // ── Error / toast ─────────────────────────────────────────────────────────────
