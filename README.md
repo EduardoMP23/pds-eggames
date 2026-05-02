@@ -1,5 +1,6 @@
 # Board Games Multiplayer
 
+
 Plataforma de jogos de tabuleiro multiplayer em tempo real. Sem cadastro — só digite um nome e jogue.
 
 **Jogos:** Xadrez · Exploding Kittens · Coup · Hive
