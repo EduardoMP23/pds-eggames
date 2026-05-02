@@ -1,0 +1,49 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            APP_DIR="${{ secrets.APP_DIR }}"
+            REPO_URL="${{ secrets.REPO_URL }}"
+
+            # Clone if first deploy, otherwise pull
+            if [ -d "$APP_DIR/.git" ]; then
+              cd "$APP_DIR"
+              git pull origin main
+            else
+              git clone "$REPO_URL" "$APP_DIR"
+              cd "$APP_DIR"
+            fi
+
+            # Install / update dependencies (skip devDeps in prod)
+            npm ci --omit=dev
+
+            # Ensure logs directory exists
+            mkdir -p logs
+
+            # Reload with PM2 (zero-downtime if already running, start if not)
+            if pm2 list | grep -q "board-games"; then
+              pm2 reload ecosystem.config.js --update-env
+            else
+              pm2 start ecosystem.config.js
+              pm2 save
+            fi
+
+            echo "Deploy concluído: $(date)"
