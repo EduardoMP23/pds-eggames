@@ -50,13 +50,20 @@
           </div>
         </div>
 
-        <!-- CENTER: bank (coins) and deck -->
-        <div class="coup-center">
-          <div class="coup-bank-area" id="coupPileImg">
-            <img src="/assets/coup/monte-moedas.png" class="coup-center-img" alt="Banco de moedas">
-          </div>
-          <div class="coup-deck-area" id="coupDeckImg">
-            <img src="/assets/coup/baralho.png" class="coup-center-img" alt="Baralho">
+        <!-- ARENA: poker table + opponents around it -->
+        <div class="coup-arena">
+          <div class="coup-table-wrapper">
+            <div class="coup-table">
+              <div class="coup-table-center">
+                <div class="coup-bank-area" id="coupPileImg">
+                  <img src="/assets/coup/monte-moedas.png" class="coup-center-img" alt="Banco de moedas">
+                </div>
+                <div class="coup-deck-area" id="coupDeckImg">
+                  <img src="/assets/coup/baralho.png" class="coup-center-img" alt="Baralho">
+                </div>
+              </div>
+            </div>
+            <div class="coup-opponents" id="coupOpponents"></div>
           </div>
         </div>
 
@@ -181,6 +188,7 @@
     setText('coupDeckCount', state.deckCount);
 
     renderOwnCards(me);
+    renderOpponents(state);
     renderExchange(state, me);
 
     if (state.status === 'finished') {
@@ -336,6 +344,69 @@
       const card = _lastState?.players?.find(p => p.playerId === _myPlayerId)?.influence?.[idx];
       if (card?.role) _flippedRoles[idx] = card.role;
       inner.classList.add('flipped');
+    }
+  }
+
+  // ── Opponent cards around the table ──────────────────────────────────────────
+
+  function renderOpponents(state) {
+    const el = document.getElementById('coupOpponents');
+    if (!el) return;
+
+    const opponents = state.players.filter(p => p.playerId !== _myPlayerId);
+    const n = opponents.length;
+
+    el.innerHTML = '';
+    if (n === 0) return;
+
+    const angles = getOpponentAngles(n);
+
+    opponents.forEach((opp, i) => {
+      const rad = (angles[i] * Math.PI) / 180;
+      // r=42% → group centers sit near the table edge (table radius = 50% of wrapper)
+      const x = 50 + 42 * Math.sin(rad);
+      const y = 50 - 42 * Math.cos(rad);
+
+      const group = document.createElement('div');
+      group.className = 'coup-opp-group';
+      group.style.left      = x + '%';
+      group.style.top       = y + '%';
+      group.style.transform = `translate(-50%, -50%) rotate(${angles[i]}deg)`;
+
+      const cardsEl = document.createElement('div');
+      cardsEl.className = 'coup-opp-cards';
+
+      opp.influence.forEach(card => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'coup-opp-card' + (card.revealed ? ' is-revealed' : '');
+
+        const img = document.createElement('img');
+        img.src = card.revealed
+          ? (ROLE_IMAGES[card.role] || '/assets/coup/carta-verso.png')
+          : '/assets/coup/carta-verso.png';
+        img.alt = card.revealed ? (ROLE_LABELS[card.role] || card.role) : 'carta';
+
+        cardEl.appendChild(img);
+        cardsEl.appendChild(cardEl);
+      });
+
+      group.appendChild(cardsEl);
+      el.appendChild(group);
+    });
+  }
+
+  // Angle 0° = 12 o'clock, clockwise. Presets keep opponents in the upper arc.
+  function getOpponentAngles(n) {
+    switch (n) {
+      case 1: return [0];
+      case 2: return [-50, 50];
+      case 3: return [-90, 0, 90];
+      case 4: return [-110, -37, 37, 110];
+      case 5: return [-120, -60, 0, 60, 120];
+      default: {
+        const step = 240 / (n - 1);
+        return Array.from({ length: n }, (_, i) => -120 + step * i);
+      }
     }
   }
 
