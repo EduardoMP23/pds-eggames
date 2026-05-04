@@ -121,10 +121,25 @@
   window.startGame = function () { socket.emit('lobby:start', { roomId }); };
 
   window.copyLink = function () {
-    navigator.clipboard.writeText(document.getElementById('inviteLink').value).then(() => {
+    const input = document.getElementById('inviteLink');
+    const text = input.value;
+
+    const showMsg = () => {
       document.getElementById('copyMsg').textContent = 'Link copiado!';
       setTimeout(() => { document.getElementById('copyMsg').textContent = ''; }, 2000);
-    });
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(showMsg).catch(() => {
+        input.select();
+        document.execCommand('copy');
+        showMsg();
+      });
+    } else {
+      input.select();
+      document.execCommand('copy');
+      showMsg();
+    }
   };
 
   window.sendChat = function () {
