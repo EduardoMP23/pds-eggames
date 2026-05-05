@@ -42,9 +42,13 @@ jobs:
             # Ensure logs directory exists
             mkdir -p logs
 
-            # Reload with PM2 (zero-downtime if already running, start if not)
+            # Stamp current git hash into game.html to bust JS cache on every deploy
+            HASH=$(git rev-parse --short HEAD)
+            sed -i "s/\?v=[0-9]*/\?v=${HASH}/g" public/game.html
+
+            # Restart with PM2 (ensures new code is picked up)
             if pm2 list | grep -q "board-games"; then
-              pm2 reload ecosystem.config.js --update-env
+              pm2 restart ecosystem.config.js --update-env
             else
               pm2 start ecosystem.config.js
               pm2 save
