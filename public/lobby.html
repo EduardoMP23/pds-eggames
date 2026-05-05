@@ -3,61 +3,98 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sala de Espera — Board Games</title>
-  <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/lobby.css">
+  <title>PIXEL.LOBBY — Sala de Espera</title>
+  <link rel="stylesheet" href="/css/pixel-lobby.css">
 </head>
 <body>
-  <!-- Name modal for guests -->
-  <div id="nameModal" class="modal-overlay" style="display:none">
-    <div class="modal">
-      <h2>Qual é o seu nome?</h2>
-      <input type="text" id="guestName" placeholder="Seu nome..." maxlength="20" autocomplete="off">
-      <button class="btn" onclick="joinWithName()">Entrar na Sala</button>
-    </div>
+
+  <!-- FX Layers -->
+  <div class="fx-grid"></div>
+  <div class="fx-crt-glow"></div>
+  <div class="fx-flicker"></div>
+  <div class="fx-scanlines"></div>
+  <canvas id="particles"></canvas>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LOBBY SCREEN
+  ════════════════════════════════════════════════════════ -->
+  <div class="screen active">
+
+    <!-- Brand bar -->
+    <header class="brand-bar">
+      <a href="/" class="brand-bar__logo">
+        ← PIXEL.LOBBY
+      </a>
+      <div class="brand-bar__right">
+        <div id="lobbyBrandSprite" style="width:32px;height:32px;position:relative;image-rendering:pixelated;"></div>
+        <span class="brand-bar__player" id="lobbyBrandName"></span>
+      </div>
+    </header>
+
+    <div class="lobby-screen-body">
+
+      <!-- Header bar: game info + room code -->
+      <div class="lobby-header-bar">
+        <div class="px-frame px-frame--yellow lobby-game-box">
+          <div class="lobby-game-box__label">JOGO</div>
+          <div class="lobby-game-box__name" id="lobbyGameName">—</div>
+        </div>
+
+        <div class="px-frame px-frame--cyan lobby-code-box">
+          <div class="lobby-code-box__label">CÓDIGO DA SALA</div>
+          <div class="lobby-code-box__row">
+            <div class="lobby-code-box__code" id="lobbyRoomCode">———</div>
+            <button class="btn-px btn-px--cyan btn-px--sm" onclick="copyLink()">COPIAR</button>
+          </div>
+          <div id="copyMsg" style="font-family:'VT323',monospace;color:var(--neon-green);font-size:1rem;min-height:1.2em"></div>
+        </div>
+      </div>
+
+      <!-- Main grid: players left, chat right -->
+      <div class="lobby-grid">
+
+        <!-- Players panel -->
+        <div class="px-frame px-frame--purple" style="padding:1.25rem">
+          <div class="players-panel-title">&gt; JOGADORES_ <span id="playerCount"></span></div>
+          <div class="players-list" id="playerList"></div>
+          <div class="waiting-msg" id="waitingMsg"></div>
+          <div class="lobby-actions mt-1">
+            <button class="btn-px btn-px--green" id="btnReady" onclick="toggleReady()">PRONTO</button>
+            <button class="btn-px btn-px--yellow" id="startBtn" onclick="startGame()" style="display:none">▶ INICIAR</button>
+          </div>
+          <div id="startMsg" style="font-family:'VT323',monospace;color:var(--ink-2);font-size:1rem;margin-top:0.4rem;min-height:1.2em"></div>
+        </div>
+
+        <!-- Chat panel -->
+        <div class="px-frame px-frame--cyan" style="padding:1.25rem">
+          <div class="chat-panel-title">CHAT_ <span class="pxdot pxdot--cyan"></span></div>
+          <div class="chat-box">
+            <div class="chat-log" id="chatMessages"></div>
+            <div class="chat-input-row">
+              <input
+                class="input-px"
+                id="chatInput"
+                type="text"
+                placeholder="Mensagem..."
+                maxlength="200"
+                onkeydown="chatKeyDown(event)"
+                autocomplete="off"
+              >
+              <button class="btn-px btn-px--cyan btn-px--sm" onclick="sendChat()">OK</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /lobby-grid -->
+
+    </div><!-- /lobby-screen-body -->
+
+    <footer class="px-footer">PIXEL.LOBBY &copy; 2156 &mdash; ALL SYSTEMS NOMINAL</footer>
   </div>
 
-  <div class="lobby-container">
-    <div class="lobby-header">
-      <a href="/" class="back-link">← Início</a>
-      <div class="game-badge" id="gameBadge">—</div>
-    </div>
-
-    <div class="lobby-main">
-      <div class="players-panel">
-        <h2>Jogadores <span id="playerCount">(0)</span></h2>
-        <ul class="player-list" id="playerList"></ul>
-        <div id="waitingMsg" class="waiting-msg"></div>
-      </div>
-
-      <div class="invite-panel">
-        <h2>Convidar Amigos</h2>
-        <p class="invite-label">Compartilhe este link:</p>
-        <div class="invite-link-box">
-          <input type="text" id="inviteLink" readonly>
-          <button class="btn-copy" onclick="copyLink()">Copiar</button>
-        </div>
-        <div id="copyMsg" style="font-size:0.8rem;color:var(--accent);height:1.2em"></div>
-
-        <div id="hostControls" style="display:none; margin-top:2rem">
-          <button class="btn btn-start" id="startBtn" onclick="startGame()">Iniciar Jogo</button>
-          <p id="startMsg" class="start-msg"></p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Chat -->
-    <div class="chat-panel">
-      <div class="chat-messages" id="chatMessages"></div>
-      <div class="chat-input-row">
-        <input type="text" id="chatInput" placeholder="Mensagem..." maxlength="200" onkeydown="chatKeyDown(event)">
-        <button class="btn" onclick="sendChat()">Enviar</button>
-      </div>
-    </div>
-  </div>
-
+  <!-- Scripts -->
+  <script src="/js/pixel-sprites.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/socket-client.js"></script>
   <script src="/js/pages/lobby.js"></script>
 </body>
 </html>

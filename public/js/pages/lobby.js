@@ -1,158 +1,320 @@
 (function () {
-  const roomId = window.location.pathname.split('/').pop();
-  let myPlayerId  = sessionStorage.getItem('playerId');
-  let myPlayerName = sessionStorage.getItem('playerName');
-  let isHost  = false;
-  let roomData = null;
+  'use strict';
 
-  const socket = io();
+  /* ── Helpers ───────────────────────────────────────────────── */
+  function esc(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 
-  // Set invite link
-  document.getElementById('inviteLink').value = window.location.href;
+  /* ── Game labels ───────────────────────────────────────────── */
+  var GAME_LABELS = { hive: 'HIVE', coup: 'COUP', ito: 'ITO' };
+  var GAME_ACCENTS = { hive: 'px-frame--green', coup: 'px-frame--yellow', ito: 'px-frame--cyan' };
 
-  // If guest (no name saved), show the name modal
+  /* ── State ─────────────────────────────────────────────────── */
+  var roomId       = window.location.pathname.split('/').pop();
+  var myPlayerId   = sessionStorage.getItem('playerId');
+  var myPlayerName = sessionStorage.getItem('playerName');
+  var myAvatar     = sessionStorage.getItem('playerAvatar') || 'knight';
+  var myColor      = sessionStorage.getItem('playerColor')  || '#ff2e88';
+  var isHost       = false;
+  var isReady      = false;
+  var roomData     = null;
+
+  /* ── Avatar cycling for other players ─────────────────────── */
+  var FALLBACK_AVATARS = AVATAR_KEYS || ['knight','wizard','ninja','robot','alien','cat'];
+  var FALLBACK_COLORS  = COLOR_PALETTE || ['#ff2e88','#00f0ff','#39ff7a','#ffe600','#ff7a1f','#b14aed'];
+
+  function avatarForIndex(i) {
+    return FALLBACK_AVATARS[i % FALLBACK_AVATARS.length];
+  }
+  function colorForIndex(i) {
+    return FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+  }
+
+  /* ── Socket setup ──────────────────────────────────────────── */
+  var socket = io();
+
+  /* ── Brand bar: show our avatar ───────────────────────────── */
+  var brandSprite = document.getElementById('lobbyBrandSprite');
+  var brandName   = document.getElementById('lobbyBrandName');
+  if (brandSprite) renderSprite(brandSprite, myAvatar, myColor, 32);
+  if (brandName && myPlayerName) brandName.textContent = myPlayerName.toUpperCase();
+
+  /* ── Room code display ─────────────────────────────────────── */
+  var lobbyRoomCode = document.getElementById('lobbyRoomCode');
+  if (lobbyRoomCode) lobbyRoomCode.textContent = roomId;
+
+  /* ── Guest entry: if no name, redirect to home with roomId ─── */
   if (!myPlayerName) {
-    document.getElementById('nameModal').style.display = 'flex';
-  } else {
-    joinRoom(myPlayerName);
+    // Store destination and send user to pick a name
+    sessionStorage.setItem('pendingRoom', roomId);
+    window.location.href = '/';
+    return; // stop execution
   }
 
-  window.joinWithName = function () {
-    const name = document.getElementById('guestName').value.trim();
-    if (!name) return;
-    myPlayerName = name;
-    sessionStorage.setItem('playerName', name);
-    document.getElementById('nameModal').style.display = 'none';
-    joinRoom(name);
-  };
-
-  document.getElementById('guestName').addEventListener('keydown', e => {
-    if (e.key === 'Enter') window.joinWithName();
-  });
-
+  /* ── Join room ─────────────────────────────────────────────── */
   function joinRoom(name) {
-    socket.emit('room:join', { roomId, playerName: name });
+    socket.emit('room:join', { roomId: roomId, playerName: name });
   }
 
-  // ── Socket events ───────────────────────────────────────────────────────────
+  joinRoom(myPlayerName);
 
-  socket.on('room:joined', data => {
+  /* ══════════════════════════════════════════════════════════
+     SOCKET EVENTS
+  ══════════════════════════════════════════════════════════ */
+
+  socket.on('room:joined', function (data) {
     myPlayerId = data.playerId;
     sessionStorage.setItem('playerId', data.playerId);
     isHost   = data.isHost;
     roomData = data;
 
-    document.getElementById('gameBadge').textContent = '🐝 Hive';
-    document.title = 'Hive — Sala de Espera';
+    // Update game name display
+    var gameName = document.getElementById('lobbyGameName');
+    if (gameName) {
+      gameName.textContent = GAME_LABELS[data.gameId] || (data.gameId || '—').toUpperCase();
+    }
+    document.title = (GAME_LABELS[data.gameId] || 'Lobby') + ' — PIXEL.LOBBY';
 
-    renderPlayers(data.players, data.isHost ? data.players[0]?.playerId : null);
-    if (data.isHost) document.getElementById('hostControls').style.display = '';
+    // Host controls
+    updateHostControls();
+
+    renderPlayers(data.players, data.isHost ? (data.players[0] && data.players[0].playerId) : null);
     updateWaitingMsg(data.players, data.minPlayers);
 
-    if (data.status === 'playing') window.location.href = `/game/${roomId}`;
+    if (data.status === 'playing') {
+      window.location.href = '/game/' + roomId;
+    }
   });
 
-  socket.on('room:join-error', ({ message }) => {
-    alert('Erro ao entrar na sala: ' + message);
+  socket.on('room:join-error', function (data) {
+    alert('Erro ao entrar na sala: ' + data.message);
     window.location.href = '/';
   });
 
-  socket.on('lobby:player-joined', ({ players, newHostId }) => {
-    renderPlayers(players, newHostId);
-    updateWaitingMsg(players, roomData?.minPlayers);
+  socket.on('lobby:player-joined', function (data) {
+    renderPlayers(data.players, data.newHostId);
+    updateWaitingMsg(data.players, roomData && roomData.minPlayers);
   });
 
-  socket.on('lobby:player-left', ({ players, newHostId }) => {
-    renderPlayers(players, newHostId);
-    if (newHostId === myPlayerId) {
+  socket.on('lobby:player-left', function (data) {
+    renderPlayers(data.players, data.newHostId);
+    if (data.newHostId === myPlayerId) {
       isHost = true;
-      document.getElementById('hostControls').style.display = '';
+      updateHostControls();
     }
-    updateWaitingMsg(players, roomData?.minPlayers);
+    updateWaitingMsg(data.players, roomData && roomData.minPlayers);
   });
 
-  socket.on('game:start', ({ roomId: rid }) => {
-    window.location.href = `/game/${rid}`;
+  socket.on('game:start', function (data) {
+    window.location.href = '/game/' + (data.roomId || roomId);
   });
 
-  socket.on('chat:message', ({ playerName, text }) => {
-    const msgs = document.getElementById('chatMessages');
-    const div  = document.createElement('div');
-    div.className = 'chat-msg';
-    div.innerHTML = `<span class="author">${esc(playerName)}:</span> ${esc(text)}`;
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
+  socket.on('chat:message', function (data) {
+    appendChatMsg(data.playerName, data.text);
   });
 
-  // ── UI helpers ──────────────────────────────────────────────────────────────
+  /* ══════════════════════════════════════════════════════════
+     UI HELPERS
+  ══════════════════════════════════════════════════════════ */
+
+  function updateHostControls() {
+    var startBtn = document.getElementById('startBtn');
+    if (startBtn) {
+      startBtn.style.display = isHost ? '' : 'none';
+    }
+  }
 
   function renderPlayers(players, hostId) {
-    const list     = document.getElementById('playerList');
-    const countEl  = document.getElementById('playerCount');
-    const connected = players.filter(p => p.connected);
-    countEl.textContent = `(${connected.length})`;
+    var list    = document.getElementById('playerList');
+    var countEl = document.getElementById('playerCount');
 
-    list.innerHTML = players.map(p => `
-      <li>
-        <span>${esc(p.playerName)}</span>
-        ${p.playerId === hostId ? '<span class="host-badge">Host</span>' : ''}
-        ${!p.connected ? '<span class="disconnected">(desconectado)</span>' : ''}
-      </li>
-    `).join('');
+    if (!list) return;
+
+    var connected = players.filter(function (p) { return p.connected; });
+    if (countEl) countEl.textContent = '(' + connected.length + ')';
+
+    list.innerHTML = '';
+
+    players.forEach(function (p, idx) {
+      var isMe = p.playerId === myPlayerId;
+      var isPlayerHost = p.playerId === hostId;
+      var pAvatar, pColor;
+
+      if (isMe) {
+        pAvatar = myAvatar;
+        pColor  = myColor;
+      } else {
+        pAvatar = avatarForIndex(idx);
+        pColor  = colorForIndex(idx);
+      }
+
+      var row = document.createElement('div');
+      row.className = 'player-row';
+      row.style.borderLeftColor = pColor;
+
+      // Sprite
+      var spriteEl = document.createElement('div');
+      spriteEl.className = 'player-row__sprite';
+      renderSprite(spriteEl, pAvatar, pColor, 40);
+      row.appendChild(spriteEl);
+
+      // Name
+      var nameEl = document.createElement('div');
+      nameEl.className = 'player-row__name';
+      nameEl.textContent = p.playerName + (isMe ? ' (você)' : '');
+      row.appendChild(nameEl);
+
+      // Badges
+      var badges = document.createElement('div');
+      badges.className = 'player-row__badges';
+
+      if (isPlayerHost) {
+        var hostBadge = document.createElement('span');
+        hostBadge.className = 'status-host';
+        hostBadge.textContent = 'HOST';
+        badges.appendChild(hostBadge);
+      }
+
+      if (!p.connected) {
+        var dcBadge = document.createElement('span');
+        dcBadge.className = 'status-dc';
+        dcBadge.textContent = 'DC';
+        badges.appendChild(dcBadge);
+      } else if (isPlayerHost) {
+        // already shown
+      } else {
+        var waitBadge = document.createElement('span');
+        waitBadge.className = 'status-wait';
+        waitBadge.textContent = 'AGUARD';
+        badges.appendChild(waitBadge);
+      }
+
+      row.appendChild(badges);
+      list.appendChild(row);
+    });
   }
 
   function updateWaitingMsg(players, minPlayers) {
-    const connected = players.filter(p => p.connected).length;
-    const el = document.getElementById('waitingMsg');
-    if (!minPlayers) return;
+    var connected = players.filter(function (p) { return p.connected; }).length;
+    var el = document.getElementById('waitingMsg');
+    if (!el || !minPlayers) return;
 
-    el.textContent = connected < minPlayers
-      ? `Aguardando jogadores... (${connected}/${minPlayers} mínimo)`
-      : 'Pronto para começar!';
+    if (connected < minPlayers) {
+      el.textContent = 'Aguardando jogadores... (' + connected + '/' + minPlayers + ' mínimo)';
+    } else {
+      el.textContent = 'Pronto para começar!';
+    }
 
-    const startBtn = document.getElementById('startBtn');
+    var startBtn = document.getElementById('startBtn');
     if (startBtn) {
       startBtn.disabled = connected < minPlayers;
-      document.getElementById('startMsg').textContent =
-        connected < minPlayers ? `Precisa de pelo menos ${minPlayers} jogadores` : '';
+    }
+
+    var startMsg = document.getElementById('startMsg');
+    if (startMsg) {
+      startMsg.textContent = connected < minPlayers
+        ? 'Precisa de pelo menos ' + minPlayers + ' jogadores'
+        : '';
     }
   }
 
-  window.startGame = function () { socket.emit('lobby:start', { roomId }); };
+  function appendChatMsg(playerName, text) {
+    var log = document.getElementById('chatMessages');
+    if (!log) return;
+    var msg = document.createElement('div');
+    msg.className = 'chat-msg';
+    var author = document.createElement('span');
+    author.className = 'chat-author';
+    author.textContent = playerName + ':';
+    var body = document.createElement('span');
+    body.className = 'chat-text';
+    body.textContent = text;
+    msg.appendChild(author);
+    msg.appendChild(body);
+    log.appendChild(msg);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     ACTIONS
+  ══════════════════════════════════════════════════════════ */
+
+  window.startGame = function () {
+    socket.emit('lobby:start', { roomId: roomId });
+  };
+
+  window.toggleReady = function () {
+    isReady = !isReady;
+    var btn = document.getElementById('btnReady');
+    if (btn) {
+      if (isReady) {
+        btn.textContent = '✓ PRONTO';
+        btn.classList.remove('btn-px--green');
+        btn.classList.add('btn-px--ghost');
+      } else {
+        btn.textContent = 'PRONTO';
+        btn.classList.add('btn-px--green');
+        btn.classList.remove('btn-px--ghost');
+      }
+    }
+    // Could emit ready state to server if supported in the future
+  };
 
   window.copyLink = function () {
-    const input = document.getElementById('inviteLink');
-    const text = input.value;
-
-    const showMsg = () => {
-      document.getElementById('copyMsg').textContent = 'Link copiado!';
-      setTimeout(() => { document.getElementById('copyMsg').textContent = ''; }, 2000);
+    var text = window.location.href;
+    var showMsg = function () {
+      var el = document.getElementById('copyMsg');
+      if (el) {
+        el.textContent = 'Link copiado!';
+        setTimeout(function () { if (el) el.textContent = ''; }, 2000);
+      }
     };
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(showMsg).catch(() => {
-        input.select();
-        document.execCommand('copy');
+      navigator.clipboard.writeText(text).then(showMsg).catch(function () {
+        fallbackCopy(text);
         showMsg();
       });
     } else {
-      input.select();
-      document.execCommand('copy');
+      fallbackCopy(text);
       showMsg();
     }
   };
 
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity  = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+  }
+
   window.sendChat = function () {
-    const input = document.getElementById('chatInput');
-    const text  = input.value.trim();
+    var input = document.getElementById('chatInput');
+    if (!input) return;
+    var text = input.value.trim();
     if (!text) return;
-    socket.emit('chat:message', { roomId, text });
+    socket.emit('chat:message', { roomId: roomId, text: text });
     input.value = '';
   };
 
-  window.chatKeyDown = function (e) { if (e.key === 'Enter') window.sendChat(); };
+  window.chatKeyDown = function (e) {
+    if (e.key === 'Enter') window.sendChat();
+  };
 
-  function esc(str) {
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  /* ── Particles ─────────────────────────────────────────────── */
+  renderParticles();
+
+  /* ── Pending room redirect (guest flow) ────────────────────── */
+  // If user was sent here from a direct link without a name,
+  // after picking a name on home page they come back.
+  var pending = sessionStorage.getItem('pendingRoom');
+  if (pending && pending === roomId) {
+    sessionStorage.removeItem('pendingRoom');
   }
+
 })();
