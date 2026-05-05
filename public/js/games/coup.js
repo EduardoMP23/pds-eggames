@@ -28,6 +28,10 @@
   let _flippedCards      = new Set();  // indices of cards currently showing face
   const _flippedRoles    = {};         // idx → role when card was flipped (detects reset)
   const _tapState        = {};         // per-card: { count, timer }
+  let _exchangeAnimating  = false;     // true while card-exchange animation is running
+  let _pendingRenderState  = null;     // state queued during animation
+  let _pendingRenderAction = null;     // sendAction queued during animation
+  let _exchangingCardIdx   = null;     // own card index being exchanged
 
   // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -176,6 +180,12 @@
 
   function render(state, sendAction) {
     _sendAction = sendAction;
+
+    if (_exchangeAnimating) {
+      _pendingRenderState  = state;
+      _pendingRenderAction = sendAction;
+      return;
+    }
 
     const prevState = _lastState;
 
@@ -330,6 +340,7 @@
 
           if (n >= 2) {
             // Double tap → exchange card with deck
+            _exchangingCardIdx = idx;
             _sendAction && _sendAction({ type: 'return-card-to-deck', cardIndex: idx });
             _flippedCards.delete(idx);
             showToast('Carta trocada com o baralho');
@@ -561,7 +572,148 @@
       .finished.then(() => coin.remove());
   }
 
-  // ── Card fly animation ────────────────────────────────────────────────────
+  // ── Card fly helpers ─────────────────────────────────────────────────────────
+
+  function _makeCardSprite(cx, cy) {
+    const img = document.createElement('img');
+    img.src = '/assets/coup/carta-verso.png';
+    img.style.cssText = `
+      position: fixed;
+      width: 32px; height: 46px;
+      left: ${cx}px; top: ${cy}px;
+      transform: translate(-50%,-50%);
+      pointer-events: none;
+      z-index: 999;
+      border-radius: 6px;
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,.45));
+    `;
+    return img;
+  }
+
+  function _finishExchangeAnimation() {
+    _exchangeAnimating  = false;
+    _exchangingCardIdx  = null;
+    const state = _pendingRenderState;
+    const sa    = _pendingRenderAction;
+    _pendingRenderState  = null;
+    _pendingRenderAction = null;
+    if (state) render(state, sa ?? _sendAction);
+  }
+
+  // ── Deck shuffle — cards fan out and collapse back ───────────────────────────
+
+  function _animateDeckShuffle(deckCx, deckCy, duration, deckEl) {
+    return new Promise(resolve => {
+      const COUNT   = 7;
+      let done      = 0;
+      const deckImg = deckEl?.querySelector('img') || deckEl;
+      if (deckImg) deckImg.style.opacity = '0';
+
+      for (let i = 0; i < COUNT; i++) {
+        const t        = i / (COUNT - 1);           // 0 → 1
+        const angleDeg = -50 + t * 100;             // fan: -50° … +50°
+        const angleRad = angleDeg * Math.PI / 180;
+        const dist     = 28 + Math.abs(angleDeg) * 0.25;
+        const tx       = Math.sin(angleRad) * dist;
+        const ty       = -Math.cos(Math.abs(angleRad * 0.7)) * dist * 0.5;
+        const rot      = angleDeg * 0.55;           // each card tilts with its angle
+        const delay    = i * 18;                    // slight cascade
+
+        const sprite = _makeCardSprite(deckCx, deckCy);
+        document.body.appendChild(sprite);
+
+        sprite.animate([
+          { transform: 'translate(-50%,-50%) rotate(0deg) scale(1)',                                                                    opacity: 0.9, offset: 0    },
+          { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) rotate(${rot}deg) scale(1.08)`,                          opacity: 1,   offset: 0.45 },
+          { transform: `translate(calc(-50% + ${tx * 0.15}px), calc(-50% + ${ty * 0.15}px)) rotate(${rot * 0.15}deg) scale(0.95)`,     opacity: 0.7, offset: 0.75 },
+          { transform: 'translate(-50%,-50%) rotate(0deg) scale(1)',                                                                    opacity: 0,   offset: 1    },
+        ], { duration, delay, easing: 'ease-in-out', fill: 'forwards' })
+        .finished.then(() => {
+          sprite.remove();
+          if (++done === COUNT) {
+            if (deckImg) deckImg.style.opacity = '';
+            resolve();
+          }
+        });
+      }
+    });
+  }
+
+  // ── Card exchange animation (return-card-to-deck) ─────────────────────────────
+  // Sequence: card flies out → deck shuffles → new card flies in → render new state
+
+  function animateCardExchange(playerId) {
+    const isMe   = playerId === _myPlayerId;
+    const deckEl = document.getElementById('coupDeckImg');
+    if (!deckEl) { _finishExchangeAnimation(); return; }
+
+    _exchangeAnimating = true;
+
+    const deckRect = deckEl.getBoundingClientRect();
+    const deckCx   = deckRect.left + deckRect.width  / 2;
+    const deckCy   = deckRect.top  + deckRect.height / 2;
+
+    // ── Determine origin and which card to hide ───────────────────────────────
+    let originEl = null;
+    let cardSlot = null;
+
+    if (isMe) {
+      const slots = document.querySelectorAll('#coupOwnCards .coup-card-slot');
+      const idx   = _exchangingCardIdx ?? 0;
+      cardSlot    = slots[idx] ?? slots[slots.length - 1] ?? null;
+      originEl    = cardSlot;
+    } else {
+      originEl = document.querySelector(`.coup-opp-group[data-player-id="${playerId}"]`);
+      // Hide one opponent card so they visually show only 1 during exchange
+      const oppCards = originEl?.querySelectorAll('.coup-opp-card:not(.is-revealed)');
+      if (oppCards?.length) cardSlot = oppCards[oppCards.length - 1];
+    }
+
+    if (!originEl) { _finishExchangeAnimation(); return; }
+
+    const fromRect = originEl.getBoundingClientRect();
+    const fromCx   = fromRect.left + fromRect.width  / 2;
+    const fromCy   = fromRect.top  + fromRect.height / 2;
+
+    if (cardSlot) cardSlot.style.opacity = '0';
+
+    const FLY     = 1200;
+    const SHUFFLE = 1600;
+    const RETURN  = 1200;
+
+    // Phase 1 — card flies to deck
+    const spriteOut = _makeCardSprite(fromCx, fromCy);
+    document.body.appendChild(spriteOut);
+
+    spriteOut.animate([
+      { transform: 'translate(-50%,-50%) scale(1)',   opacity: 1,   offset: 0 },
+      { transform: `translate(calc(-50% + ${deckCx - fromCx}px), calc(-50% + ${deckCy - fromCy}px)) scale(0.5)`,
+        opacity: 0.6, offset: 1 },
+    ], { duration: FLY, easing: 'ease-in', fill: 'forwards' })
+    .finished.then(() => {
+      spriteOut.remove();
+
+      // Phase 2 — deck shuffle (cards fan out)
+      _animateDeckShuffle(deckCx, deckCy, SHUFFLE, deckEl).then(() => {
+        // Phase 3 — new card flies from deck to origin
+        const spriteIn = _makeCardSprite(deckCx, deckCy);
+        document.body.appendChild(spriteIn);
+
+        spriteIn.animate([
+          { transform: 'translate(-50%,-50%) scale(0.5)', opacity: 0.6, offset: 0 },
+          { transform: `translate(calc(-50% + ${fromCx - deckCx}px), calc(-50% + ${fromCy - deckCy}px)) scale(1)`,
+            opacity: 1, offset: 1 },
+        ], { duration: RETURN, easing: 'ease-out', fill: 'forwards' })
+        .finished.then(() => {
+          spriteIn.remove();
+          if (cardSlot) cardSlot.style.opacity = '';
+          _finishExchangeAnimation();
+        });
+      });
+    });
+  }
+
+  // ── Simple card fly (ambassador draws) ───────────────────────────────────────
 
   function animateCardFly(playerId, fromDeck) {
     const deckEl = document.getElementById('coupDeckImg');
@@ -585,36 +737,23 @@
     const dx     = (toRect.left  + toRect.width  / 2) - startX;
     const dy     = (toRect.top   + toRect.height / 2) - startY;
 
-    const card = document.createElement('img');
-    card.src = '/assets/coup/baralho.png';
-    card.style.cssText = `
-      position: fixed;
-      width: 32px;
-      height: 46px;
-      left: ${startX}px;
-      top: ${startY}px;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 999;
-      border-radius: 6px;
-      filter: drop-shadow(0 3px 8px rgba(0,0,0,0.45));
-    `;
-    document.body.appendChild(card);
+    const sprite = _makeCardSprite(startX, startY);
+    document.body.appendChild(sprite);
 
-    card.animate([
+    sprite.animate([
       { transform: 'translate(-50%,-50%) scale(1)',                                                        opacity: 1,    offset: 0    },
       { transform: `translate(calc(-50% + ${dx * 0.45}px), calc(-50% + ${dy * 0.3 - 40}px)) scale(1.2)`, opacity: 1,    offset: 0.35 },
       { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.75)`,                   opacity: 0.75, offset: 1    },
     ], { duration: 600, easing: 'ease-in-out', fill: 'forwards' })
-      .finished.then(() => card.remove());
+      .finished.then(() => sprite.remove());
   }
 
   function onAnimate({ type, playerId }) {
     if (type === 'return-card-to-deck') {
-      animateCardFly(playerId, false); // carta vai do jogador para o baralho
+      animateCardExchange(playerId);
     } else if (type === 'ambassador-start') {
-      animateCardFly(playerId, true);                           // 1ª carta do baralho para o jogador
-      setTimeout(() => animateCardFly(playerId, true), 180);   // 2ª carta com leve delay
+      animateCardFly(playerId, true);
+      setTimeout(() => animateCardFly(playerId, true), 180);
     }
   }
 
