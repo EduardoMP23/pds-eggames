@@ -64,7 +64,7 @@
   function loadGame(gameId) {
     const meta = GAME_META[gameId] || GAME_META.hive;
     document.getElementById('gameTitle').textContent = meta.title;
-    const v = encodeURIComponent(window.BUILD_HASH || '0');
+    const v = Date.now();
     document.getElementById('gameCss').href = meta.css + '?v=' + v;
 
     const script  = document.createElement('script');
