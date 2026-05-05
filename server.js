@@ -14,10 +14,14 @@
  *                  HttpRoutes              REST API      (input adapter)
  */
 
-const express = require('express');
-const http    = require('http');
-const { Server } = require('socket.io');
-const path    = require('path');
+const express      = require('express');
+const http         = require('http');
+const { Server }   = require('socket.io');
+const path         = require('path');
+const { execSync } = require('child_process');
+
+let BUILD_HASH = 'dev';
+try { BUILD_HASH = execSync('git rev-parse --short HEAD', { cwd: __dirname }).toString().trim(); } catch (_) {}
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
 const SQLiteRoomRepository   = require('./src/infrastructure/persistence/SQLiteRoomRepository');
@@ -48,11 +52,24 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders(res, filePath) {
+    if (/\.(js|css)$/.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  }
+}));
 
 // SPA routes
 app.get('/lobby/:roomId', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'lobby.html')));
-app.get('/game/:roomId',  (_req, res) => res.sendFile(path.join(__dirname, 'public', 'game.html')));
+app.get('/game/:roomId',  (_req, res) => {
+  const fs   = require('fs');
+  const html = fs.readFileSync(path.join(__dirname, 'public', 'game.html'), 'utf8')
+    .replace('__BUILD_HASH__', BUILD_HASH);
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+  res.send(html);
+});
 app.get('/health',        (_req, res) => res.json({ status: 'ok' }));
 
 // ── Composition root ──────────────────────────────────────────────────────────

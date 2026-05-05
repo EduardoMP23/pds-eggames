@@ -64,10 +64,11 @@
   function loadGame(gameId) {
     const meta = GAME_META[gameId] || GAME_META.hive;
     document.getElementById('gameTitle').textContent = meta.title;
-    document.getElementById('gameCss').href = meta.css;
+    const v = encodeURIComponent(document.documentElement.dataset.buildHash || '0');
+    document.getElementById('gameCss').href = meta.css + '?v=' + v;
 
     const script  = document.createElement('script');
-    script.src    = meta.js;
+    script.src    = meta.js + '?v=' + encodeURIComponent(document.documentElement.dataset.buildHash || '0');
     script.onload = () => {
       gameModule = window.GameModule;
       if (gameModule?.init) {
