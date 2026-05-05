@@ -58,7 +58,7 @@ class GameService {
     room.status = 'playing';
 
     this._bus.toRoom(roomId, 'game:start', { gameId: room.gameId, roomId });
-    this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId));
+    this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
     return {};
   }
 
@@ -70,6 +70,10 @@ class GameService {
 
     const room = this._repo.getRoom(roomId);
     if (!room || room.status !== 'playing') return { error: 'Game not in progress' };
+
+    if (action.type === 'reset' && room.hostPlayerId !== playerInfo.playerId) {
+      return { error: 'Apenas o criador da sala pode reiniciar a partida' };
+    }
 
     const Game = this._getGame(room.gameId);
     const result = Game.applyAction(room.gameState, action, playerInfo.playerId);
@@ -89,7 +93,7 @@ class GameService {
       });
     }
 
-    this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId));
+    this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
     return {};
   }
 
@@ -99,7 +103,7 @@ class GameService {
     if (!room.gameState) return;
     const Game = this._getGame(room.gameId);
     this._bus.toSocket(socketId, 'game:start', { gameId: room.gameId, roomId: room.roomId });
-    this._bus.toSocket(socketId, 'game:state-update', Game.getPublicState(room.gameState, playerId));
+    this._bus.toSocket(socketId, 'game:state-update', Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
   }
 }
 

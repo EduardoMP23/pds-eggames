@@ -22,7 +22,10 @@
     sessionStorage.setItem('isHost', data.isHost ? '1' : '0');
   });
 
-  socket.on('game:start', ({ gameId }) => loadGame(gameId));
+  socket.on('game:start', ({ gameId }) => {
+    if (gameModule?.onReset) gameModule.onReset();
+    loadGame(gameId);
+  });
 
   socket.on('game:state-update', state => {
     lastState = state;
@@ -34,6 +37,10 @@
 
   socket.on('game:action-error', ({ message }) => {
     if (gameModule?.onError) gameModule.onError(message);
+  });
+
+  socket.on('game:animate', data => {
+    if (gameModule?.onAnimate) gameModule.onAnimate(data);
   });
 
   socket.on('game:over', ({ winner, winnerName, reason, teamWin }) => {

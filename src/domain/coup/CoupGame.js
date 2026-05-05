@@ -190,11 +190,12 @@ function applyAction(state, action, playerId) {
   }
 }
 
-function getPublicState(state, forPlayerId) {
+function getPublicState(state, forPlayerId, hostPlayerId) {
   const me = state.players.find(p => p.playerId === forPlayerId);
 
   return {
     myPlayerId:      forPlayerId,
+    hostPlayerId:    hostPlayerId ?? null,
     players: state.players.map(p => ({
       playerId:    p.playerId,
       playerName:  p.playerName,

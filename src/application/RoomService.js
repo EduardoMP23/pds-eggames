@@ -41,7 +41,10 @@ class RoomService {
    */
   removePlayer(socketId) {
     const result = this._repo.removePlayer(socketId);
-    if (result) this._repo.reassignHost(result.roomId);
+    if (result) {
+      const room = this._repo.getRoom(result.roomId);
+      if (room && room.status === 'lobby') this._repo.reassignHost(result.roomId);
+    }
     return result;
   }
 

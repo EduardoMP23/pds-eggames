@@ -43,7 +43,7 @@
         <div class="coup-header">
           <div class="coup-header-left">
             <a href="/"><img src="/assets/coup/btn-voltar.png" class="coup-btn-icon" alt="Voltar"></a>
-            ${_isHost ? `<img src="/assets/coup/btn-reset.png" class="coup-btn-icon" id="coupResetBtn" alt="Reiniciar">` : ''}
+            <img src="/assets/coup/btn-reset.png" class="coup-btn-icon" id="coupResetBtn" alt="Reiniciar" style="display:none">
           </div>
           <div class="coup-header-right">
             <img src="/assets/coup/btn-ajuda.png" class="coup-btn-icon" id="coupHelpBtn" alt="Ajuda">
@@ -96,34 +96,33 @@
   function setupHeaderButtons() {
     // ── Reset: apenas host, requer segurar 700ms ───────────────────────────────
     const resetBtn = document.getElementById('coupResetBtn');
-    if (resetBtn) {
-      resetBtn.addEventListener('contextmenu', e => e.preventDefault());
 
-      resetBtn.addEventListener('pointerdown', e => {
-        e.preventDefault();
-        resetBtn.setPointerCapture(e.pointerId);
-        _resetPressTimer = setTimeout(() => {
-          _resetPressTimer = null;
-          _flippedCards.clear();
-          Object.keys(_flippedRoles).forEach(k => delete _flippedRoles[k]);
-          _sendAction && _sendAction({ type: 'reset' });
-          showToast('Jogo reiniciado');
-        }, 700);
-      });
+    resetBtn.addEventListener('contextmenu', e => e.preventDefault());
 
-      resetBtn.addEventListener('pointerup', e => {
-        e.preventDefault();
-        if (_resetPressTimer !== null) {
-          clearTimeout(_resetPressTimer);
-          _resetPressTimer = null;
-          showToast('Segure para reiniciar o jogo');
-        }
-      });
+    resetBtn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      resetBtn.setPointerCapture(e.pointerId);
+      _resetPressTimer = setTimeout(() => {
+        _resetPressTimer = null;
+        _flippedCards.clear();
+        Object.keys(_flippedRoles).forEach(k => delete _flippedRoles[k]);
+        _sendAction && _sendAction({ type: 'reset' });
+        showToast('Jogo reiniciado');
+      }, 700);
+    });
 
-      resetBtn.addEventListener('pointercancel', () => {
-        if (_resetPressTimer !== null) { clearTimeout(_resetPressTimer); _resetPressTimer = null; }
-      });
-    }
+    resetBtn.addEventListener('pointerup', e => {
+      e.preventDefault();
+      if (_resetPressTimer !== null) {
+        clearTimeout(_resetPressTimer);
+        _resetPressTimer = null;
+        showToast('Segure para reiniciar o jogo');
+      }
+    });
+
+    resetBtn.addEventListener('pointercancel', () => {
+      if (_resetPressTimer !== null) { clearTimeout(_resetPressTimer); _resetPressTimer = null; }
+    });
 
     // ── Ajuda: abre o manual oficial do Coup ──────────────────────────────────
     document.getElementById('coupHelpBtn')?.addEventListener('click', () => {
@@ -178,10 +177,12 @@
   function render(state, sendAction) {
     _sendAction = sendAction;
 
+    const prevState = _lastState;
+
     // Detect who gained a coin since last state and animate
-    if (_lastState) {
+    if (prevState) {
       for (const player of state.players) {
-        const prev = _lastState.players.find(p => p.playerId === player.playerId);
+        const prev = prevState.players.find(p => p.playerId === player.playerId);
         if (prev && player.coins > prev.coins) {
           animateCoinFly(player.playerId);
         }
@@ -189,6 +190,10 @@
     }
 
     _lastState  = state;
+
+    // Mostrar botão de reset apenas para o host atual
+    const resetBtn = document.getElementById('coupResetBtn');
+    if (resetBtn) resetBtn.style.display = state.hostPlayerId === _myPlayerId ? '' : 'none';
 
     const me = state.players.find(p => p.playerId === _myPlayerId);
     const coins = me ? me.coins : 0;
@@ -198,7 +203,7 @@
     setText('coupBankCount', state.bankCoins);
     setText('coupDeckCount', state.deckCount);
 
-    renderOwnCards(me);
+    renderOwnCards(me, prevState);
     renderOpponents(state);
     renderExchange(state, me);
 
@@ -209,13 +214,24 @@
 
   // ── Own cards ─────────────────────────────────────────────────────────────────
 
-  function renderOwnCards(me) {
+  function renderOwnCards(me, prevState) {
     const el = document.getElementById('coupOwnCards');
     if (!el || !me) return;
 
     el.innerHTML = '';
 
-    // Se o role de uma carta virada mudou, é uma nova carta (reset) — vira de volta
+    // Detectar reinício: estado anterior tinha carta(s) revealed, novo não tem nenhuma
+    if (prevState) {
+      const prevMe = prevState.players.find(p => p.playerId === _myPlayerId);
+      const hadRevealed = prevMe?.influence.some(c => c.revealed);
+      const hasRevealed = me.influence.some(c => c.revealed);
+      if (hadRevealed && !hasRevealed) {
+        _flippedCards.clear();
+        for (const k in _flippedRoles) delete _flippedRoles[k];
+      }
+    }
+
+    // Se o role de uma carta virada mudou, é uma nova carta (troca/reset) — vira de volta
     me.influence.forEach((card, idx) => {
       if (_flippedCards.has(idx) && !card.revealed && _flippedRoles[idx] && _flippedRoles[idx] !== card.role) {
         _flippedCards.delete(idx);
@@ -225,7 +241,7 @@
 
     me.influence.forEach((card, idx) => {
       // Permanently revealed cards always show face-up
-      if (card.revealed) _flippedCards.add(idx);
+      if (card.revealed) { _flippedCards.add(idx); _flippedRoles[idx] = card.role; }
       const isFlipped = _flippedCards.has(idx);
 
       const slot = document.createElement('div');
@@ -545,6 +561,63 @@
       .finished.then(() => coin.remove());
   }
 
+  // ── Card fly animation ────────────────────────────────────────────────────
+
+  function animateCardFly(playerId, fromDeck) {
+    const deckEl = document.getElementById('coupDeckImg');
+    if (!deckEl) return;
+
+    let playerEl;
+    if (playerId === _myPlayerId) {
+      playerEl = document.getElementById('coupOwnCards');
+    } else {
+      playerEl = document.querySelector(`.coup-opp-group[data-player-id="${playerId}"]`);
+    }
+    if (!playerEl) return;
+
+    const fromEl   = fromDeck ? deckEl   : playerEl;
+    const toEl     = fromDeck ? playerEl : deckEl;
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect   = toEl.getBoundingClientRect();
+
+    const startX = fromRect.left + fromRect.width  / 2;
+    const startY = fromRect.top  + fromRect.height / 2;
+    const dx     = (toRect.left  + toRect.width  / 2) - startX;
+    const dy     = (toRect.top   + toRect.height / 2) - startY;
+
+    const card = document.createElement('img');
+    card.src = '/assets/coup/baralho.png';
+    card.style.cssText = `
+      position: fixed;
+      width: 32px;
+      height: 46px;
+      left: ${startX}px;
+      top: ${startY}px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 999;
+      border-radius: 6px;
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,0.45));
+    `;
+    document.body.appendChild(card);
+
+    card.animate([
+      { transform: 'translate(-50%,-50%) scale(1)',                                                        opacity: 1,    offset: 0    },
+      { transform: `translate(calc(-50% + ${dx * 0.45}px), calc(-50% + ${dy * 0.3 - 40}px)) scale(1.2)`, opacity: 1,    offset: 0.35 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.75)`,                   opacity: 0.75, offset: 1    },
+    ], { duration: 600, easing: 'ease-in-out', fill: 'forwards' })
+      .finished.then(() => card.remove());
+  }
+
+  function onAnimate({ type, playerId }) {
+    if (type === 'return-card-to-deck') {
+      animateCardFly(playerId, false); // carta vai do jogador para o baralho
+    } else if (type === 'ambassador-start') {
+      animateCardFly(playerId, true);                           // 1ª carta do baralho para o jogador
+      setTimeout(() => animateCardFly(playerId, true), 180);   // 2ª carta com leve delay
+    }
+  }
+
   // ── Error / toast ─────────────────────────────────────────────────────────────
 
   function onError(message) { showToast(message); }
@@ -569,5 +642,10 @@
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  window.GameModule = { init, render, onError };
+  function onReset() {
+    _flippedCards.clear();
+    for (const k in _flippedRoles) delete _flippedRoles[k];
+  }
+
+  window.GameModule = { init, render, onError, onAnimate, onReset };
 })();

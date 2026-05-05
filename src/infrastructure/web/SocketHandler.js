@@ -82,7 +82,17 @@ class SocketHandler {
       // ── In-game action ────────────────────────────────────────────────────
       socket.on('game:action', ({ roomId, action }) => {
         const result = this._game.handleAction(socket.id, roomId, action);
-        if (result.error) socket.emit('game:action-error', { message: result.error });
+        if (result.error) {
+          socket.emit('game:action-error', { message: result.error });
+        } else {
+          const ANIM_ACTIONS = ['return-card-to-deck', 'ambassador-start'];
+          if (ANIM_ACTIONS.includes(action.type)) {
+            const info = this._rooms.getPlayerInfo(socket.id);
+            if (info) {
+              this._io.to(roomId).emit('game:animate', { type: action.type, playerId: info.playerId });
+            }
+          }
+        }
       });
 
       // ── Chat ──────────────────────────────────────────────────────────────
