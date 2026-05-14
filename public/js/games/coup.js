@@ -32,6 +32,7 @@
   let _pendingRenderState  = null;     // state queued during animation
   let _pendingRenderAction = null;     // sendAction queued during animation
   let _exchangingCardIdx   = null;     // own card index being exchanged
+  let _pendingFlips        = [];       // elements that need a flip triggered after render
 
   // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -189,12 +190,20 @@
 
     const prevState = _lastState;
 
-    // Detect who gained a coin since last state and animate
+    // Detect coin and exchange changes since last state and animate
     if (prevState) {
       for (const player of state.players) {
         const prev = prevState.players.find(p => p.playerId === player.playerId);
-        if (prev && player.coins > prev.coins) {
+        if (!prev) continue;
+        if (player.coins > prev.coins) {
           animateCoinFly(player.playerId);
+        } else if (player.coins < prev.coins) {
+          animateCoinReturn(player.playerId);
+        }
+        // Ambassador exchange just finished for this player
+        if (prev.isExchanging && !player.isExchanging) {
+          animateCardFly(player.playerId, false);
+          setTimeout(() => animateCardFly(player.playerId, false), 180);
         }
       }
     }
@@ -213,9 +222,24 @@
     setText('coupBankCount', state.bankCoins);
     setText('coupDeckCount', state.deckCount);
 
+    _pendingFlips = [];
     renderOwnCards(me, prevState);
-    renderOpponents(state);
+    renderOpponents(state, prevState);
     renderExchange(state, me);
+
+    // Trigger flip animations: elements were added to DOM without `flipped`,
+    // double-RAF ensures the browser painted the initial state first.
+    // `is-revealed` (grayscale + ✕) is added only after the flip completes
+    // so the animation looks identical to the peek-flip.
+    if (_pendingFlips.length) {
+      const toFlip = _pendingFlips;
+      _pendingFlips = [];
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        toFlip.forEach(({ inner }) => {
+          inner.classList.add('flipped');
+        });
+      }));
+    }
 
     if (state.status === 'finished') {
       showToast(`Fim de jogo! Vencedor: ${esc(state.winnerName)}`);
@@ -257,7 +281,6 @@
       const slot = document.createElement('div');
       slot.className = 'coup-card-slot' + (card.revealed ? ' is-revealed' : '');
 
-      // Flip container
       const inner = document.createElement('div');
       inner.className = 'coup-card-inner' + (isFlipped ? ' flipped' : '') + (card.revealed ? ' instant' : '');
       inner.id = `coupCardInner${idx}`;
@@ -387,7 +410,7 @@
 
   // ── Opponent cards around the table ──────────────────────────────────────────
 
-  function renderOpponents(state) {
+  function renderOpponents(state, prevState) {
     const el = document.getElementById('coupOpponents');
     if (!el) return;
 
@@ -415,17 +438,45 @@
       const cardsEl = document.createElement('div');
       cardsEl.className = 'coup-opp-cards';
 
-      opp.influence.forEach(card => {
+      const prevOpp = prevState?.players.find(p => p.playerId === opp.playerId);
+
+      opp.influence.forEach((card, cardIdx) => {
+        const prevCard      = prevOpp?.influence[cardIdx];
+        const justRevealed  = card.revealed && !prevCard?.revealed;
+
         const cardEl = document.createElement('div');
         cardEl.className = 'coup-opp-card' + (card.revealed ? ' is-revealed' : '');
 
-        const img = document.createElement('img');
-        img.src = card.revealed
+        // Flip container — for brand-new reveals, start without `flipped` and queue it
+        const inner = document.createElement('div');
+        if (justRevealed) {
+          inner.className = 'coup-opp-card-inner';
+          _pendingFlips.push({ inner });
+        } else {
+          inner.className = 'coup-opp-card-inner' + (card.revealed ? ' flipped instant' : '');
+        }
+
+        // Front face: card back
+        const front = document.createElement('div');
+        front.className = 'coup-opp-card-face coup-opp-card-front';
+        const frontImg = document.createElement('img');
+        frontImg.src = '/assets/coup/carta-verso.png';
+        frontImg.alt = 'carta';
+        front.appendChild(frontImg);
+
+        // Back face: role image
+        const back = document.createElement('div');
+        back.className = 'coup-opp-card-face coup-opp-card-back';
+        const backImg = document.createElement('img');
+        backImg.src = card.revealed
           ? (ROLE_IMAGES[card.role] || '/assets/coup/carta-verso.png')
           : '/assets/coup/carta-verso.png';
-        img.alt = card.revealed ? (ROLE_LABELS[card.role] || card.role) : 'carta';
+        backImg.alt = card.revealed ? (ROLE_LABELS[card.role] || card.role) : 'carta';
+        back.appendChild(backImg);
 
-        cardEl.appendChild(img);
+        inner.appendChild(front);
+        inner.appendChild(back);
+        cardEl.appendChild(inner);
         cardsEl.appendChild(cardEl);
       });
 
@@ -541,11 +592,23 @@
     }
     if (!destEl) return;
 
-    const fromRect = tableWrapper.getBoundingClientRect();
+    // Origin: top of a random one of the 3 coin stacks inside the pile image.
+    // Offsets below are fractions of the image rect measured from the PNG:
+    //   stack 0 – tall pile on the left   (cx≈24%, top≈8%)
+    //   stack 1 – medium pile upper-right (cx≈68%, top≈3%)
+    //   stack 2 – single coin lower-right (cx≈67%, top≈57%)
+    const pileEl   = document.getElementById('coupPileImg');
+    const fromRect = (pileEl || tableWrapper).getBoundingClientRect();
     const toRect   = destEl.getBoundingClientRect();
 
-    const startX = fromRect.left + fromRect.width  / 2;
-    const startY = fromRect.top  + fromRect.height / 2;
+    const stacks = [
+      { cx: 0.24, ty: 0.08 },
+      { cx: 0.68, ty: 0.03 },
+      { cx: 0.67, ty: 0.57 },
+    ];
+    const s = stacks[Math.floor(Math.random() * stacks.length)];
+    const startX = fromRect.left + fromRect.width  * s.cx;
+    const startY = fromRect.top  + fromRect.height * s.ty;
     const dx     = (toRect.left  + toRect.width  / 2) - startX;
     const dy     = (toRect.top   + toRect.height / 2) - startY;
 
@@ -565,10 +628,60 @@
     document.body.appendChild(coin);
 
     coin.animate([
-      { transform: 'translate(-50%,-50%) scale(1)',                                                        opacity: 1,    offset: 0    },
-      { transform: `translate(calc(-50% + ${dx * 0.45}px), calc(-50% + ${dy * 0.3 - 40}px)) scale(1.2)`, opacity: 1,    offset: 0.35 },
-      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.75)`,                   opacity: 0.75, offset: 1    },
+      { transform: 'translate(-50%,-50%) scale(0.35)',                                                       opacity: 1, offset: 0    },
+      { transform: `translate(calc(-50% + ${dx * 0.45}px), calc(-50% + ${dy * 0.3 - 40}px)) scale(0.85)`,  opacity: 1, offset: 0.45 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1.4)`,                      opacity: 1, offset: 1    },
     ], { duration: 2000, easing: 'ease-in-out', fill: 'forwards' })
+      .finished.then(() => coin.remove());
+  }
+
+  // ── Coin return animation (player → pile) ────────────────────────────────────
+
+  function animateCoinReturn(playerId) {
+    const pileEl = document.getElementById('coupPileImg');
+    const counterEl = playerId === _myPlayerId
+      ? document.getElementById('coupOwnCounter')
+      : document.querySelector(`.coup-opp-group[data-player-id="${playerId}"] .coup-opp-counter`);
+    if (!pileEl || !counterEl) return;
+
+    const fromRect = counterEl.getBoundingClientRect();
+    const toRect   = pileEl.getBoundingClientRect();
+
+    // Same 3-stack offsets used in animateCoinFly
+    const stacks = [
+      { cx: 0.24, ty: 0.08 },
+      { cx: 0.68, ty: 0.03 },
+      { cx: 0.67, ty: 0.57 },
+    ];
+    const s    = stacks[Math.floor(Math.random() * stacks.length)];
+    const endX = toRect.left + toRect.width  * s.cx;
+    const endY = toRect.top  + toRect.height * s.ty;
+
+    const startX = fromRect.left + fromRect.width  / 2;
+    const startY = fromRect.top  + fromRect.height / 2;
+    const dx     = endX - startX;
+    const dy     = endY - startY;
+
+    const coin = document.createElement('img');
+    coin.src = '/assets/coup/moeda.png';
+    coin.style.cssText = `
+      position: fixed;
+      width: 38px;
+      height: 38px;
+      left: ${startX}px;
+      top: ${startY}px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 999;
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,0.45));
+    `;
+    document.body.appendChild(coin);
+
+    coin.animate([
+      { transform: 'translate(-50%,-50%) scale(1.4)',                                                        opacity: 1, offset: 0    },
+      { transform: `translate(calc(-50% + ${dx * 0.55}px), calc(-50% + ${dy * 0.3 - 40}px)) scale(0.85)`,  opacity: 1, offset: 0.55 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.35)`,                     opacity: 1, offset: 1    },
+    ], { duration: 1600, easing: 'ease-in-out', fill: 'forwards' })
       .finished.then(() => coin.remove());
   }
 
