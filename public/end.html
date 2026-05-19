@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>EgGames — Fim de Partida</title>
+  <link rel="stylesheet" href="/css/pixel-lobby.css" />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='2' y='2' width='12' height='12' fill='%23ff2e88'/><rect x='4' y='4' width='2' height='2' fill='%23000'/><rect x='10' y='4' width='2' height='2' fill='%23000'/><rect x='4' y='10' width='8' height='2' fill='%2300f0ff'/></svg>" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+  <style>
+    body { background: var(--bg-0); }
+    #root { min-height: 100vh; position: relative; z-index: 2; }
+    .pl-screen { min-height: 100vh; display: flex; flex-direction: column; position: relative; z-index: 2; }
+    .brand-bar { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; border-bottom:4px solid var(--neon-pink); background:linear-gradient(180deg,rgba(0,0,0,0.7),rgba(0,0,0,0)); position:relative; z-index:5; }
+    .brand-bar::after { content:''; position:absolute; left:0; right:0; bottom:-8px; height:4px; background:var(--neon-cyan); box-shadow:0 0 12px var(--neon-cyan); }
+    .brand-logo { display:flex; align-items:center; gap:10px; font-family:'Press Start 2P',monospace; font-size:14px; color:var(--ink-0); text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="fx-grid"></div>
+  <div class="fx-crt-glow"></div>
+  <div class="fx-flicker"></div>
+  <div class="fx-scanlines"></div>
+  <canvas id="particles" style="position:fixed;inset:0;z-index:1;pointer-events:none"></canvas>
+
+  <div id="root"></div>
+
+  <script src="/js/pixel-sprites.js"></script>
+
+  <script type="text/babel">
+  const { useState, useEffect, useRef, useMemo } = React;
+
+  /* ── Sprite ─────────────────────────────────────────────────── */
+  function Sprite({ kind, color, size }) {
+    const ref = useRef(null);
+    const sz = size || 40;
+    useEffect(() => {
+      if (ref.current && window.renderSprite) window.renderSprite(ref.current, kind, color || '#ff2e88', sz);
+    }, [kind, color, sz]);
+    return <div ref={ref} style={{ width:sz, height:sz, flexShrink:0, imageRendering:'pixelated' }} />;
+  }
+
+  const FALLBACK_AV = window.AVATAR_KEYS || ['knight','wizard','ninja','robot','alien','cat','ghost','skull','bat','dragon','pug','slime'];
+  const FALLBACK_CL = ['#ff2e88','#00f0ff','#39ff7a','#ffe600','#ff7a1f','#b14aed','#ff3860','#5effc1'];
+  const GAME_META   = { coup:'COUP', ito:'ITO', hive:'HIVE' };
+
+  /* ── Confetti ───────────────────────────────────────────────── */
+  function Confetti() {
+    const pieces = useMemo(() => {
+      const colors = ['#ff2e88','#00f0ff','#ffe600','#39ff7a','#b14aed','#ff7a1f'];
+      return Array.from({ length: 60 }).map((_, i) => ({
+        left: Math.random() * 100,
+        delay: Math.random() * 3,
+        dur: 3 + Math.random() * 3,
+        color: colors[i % colors.length],
+        size: 6 + Math.floor(Math.random() * 6),
+      }));
+    }, []);
+    return (
+      <div className="confetti-layer">
+        {pieces.map((p, i) => (
+          <span key={i} style={{
+            left: `${p.left}%`,
+            background: p.color,
+            width: p.size, height: p.size,
+            animationDuration: `${p.dur}s`,
+            animationDelay: `${p.delay}s`,
+          }} />
+        ))}
+      </div>
+    );
+  }
+
+  /* ── End Screen ─────────────────────────────────────────────── */
+  function EndScreen() {
+    // Read end data from sessionStorage
+    const endData = useMemo(() => {
+      try { return JSON.parse(sessionStorage.getItem('endData') || '{}'); }
+      catch (_) { return {}; }
+    }, []);
+
+    const myName      = sessionStorage.getItem('playerName')   || 'PLAYER';
+    const myAvatar    = sessionStorage.getItem('playerAvatar') || FALLBACK_AV[0];
+    const myColor     = sessionStorage.getItem('playerColor')  || FALLBACK_CL[0];
+    const gameId      = sessionStorage.getItem('selectedGame') || endData.gameId || 'coup';
+    const gameTitle   = GAME_META[gameId] || gameId.toUpperCase();
+    const winnerName  = endData.winnerName || '???';
+    const teamWin     = endData.teamWin || false;
+    const reason      = endData.reason || '';
+    const isWinner    = teamWin || (winnerName && winnerName.toUpperCase() === myName.toUpperCase());
+    const lobbyRoomId = endData.roomId || sessionStorage.getItem('roomId') || '';
+
+    useEffect(() => {
+      if (window.renderParticles) window.renderParticles();
+    }, []);
+
+    // Build mock ranking: winner + other known players
+    const players = useMemo(() => {
+      const allPlayers = endData.players || [];
+      if (allPlayers.length === 0) {
+        // Fallback: just show the winner and the local player
+        const result = [];
+        if (winnerName && winnerName !== '???') {
+          result.push({ name: winnerName, avatar: FALLBACK_AV[1], color: FALLBACK_CL[1], isWinner: true, isYou: winnerName.toUpperCase() === myName.toUpperCase() });
+        }
+        if (!result.find(p => p.isYou)) {
+          result.push({ name: myName, avatar: myAvatar, color: myColor, isWinner: false, isYou: true });
+        }
+        return result;
+      }
+      return allPlayers.map((p, idx) => ({
+        name: p.playerName || p.name || `PLAYER ${idx+1}`,
+        avatar: p.playerId === sessionStorage.getItem('playerId') ? myAvatar : FALLBACK_AV[idx % FALLBACK_AV.length],
+        color:  p.playerId === sessionStorage.getItem('playerId') ? myColor  : FALLBACK_CL[idx % FALLBACK_CL.length],
+        isWinner: (p.playerName || p.name || '').toUpperCase() === winnerName.toUpperCase() || teamWin,
+        isYou: p.playerId === sessionStorage.getItem('playerId'),
+      }));
+    }, [endData, myName, myAvatar, myColor, winnerName, teamWin]);
+
+    // Sort: winner first
+    const sorted = [...players].sort((a, b) => (b.isWinner ? 1 : 0) - (a.isWinner ? 1 : 0));
+
+    const mainTitle = teamWin ? 'VITÓRIA!' : isWinner ? 'VITÓRIA!' : 'GAME OVER';
+    const mainColor = (teamWin || isWinner) ? 'var(--neon-yellow)' : 'var(--neon-pink)';
+
+    return (
+      <div className="pl-screen enter-bottom" style={{ position:'relative' }}>
+        {(teamWin || isWinner) && <Confetti />}
+
+        <header className="brand-bar">
+          <a href="/" className="brand-logo">
+            <span className="pxdot pxdot--pink" />
+            EgGames
+          </a>
+          <div style={{ fontFamily:"'Press Start 2P'", fontSize:9, color:'var(--ink-2)' }}>
+            {gameTitle}
+          </div>
+        </header>
+
+        <main style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 24px', gap:28 }}>
+
+          {/* Title */}
+          <div style={{ textAlign:'center' }}>
+            <div className="tagline">// FIM DE PARTIDA //</div>
+            <h1
+              className="arcade-title glitch"
+              data-text={mainTitle}
+              style={{ marginTop:18, fontSize:'clamp(28px,6vw,60px)', color:mainColor }}
+            >
+              {mainTitle}
+            </h1>
+            <div style={{ fontFamily:"'Press Start 2P'", fontSize:12, color:'var(--neon-cyan)', marginTop:16 }}>
+              {gameTitle} · {teamWin ? 'TIME VENCEU!' : `VENCEDOR: ${winnerName}`}
+            </div>
+            {reason && (
+              <div style={{ fontFamily:"'VT323'", fontSize:'1.1rem', color:'var(--ink-1)', marginTop:8 }}>
+                {reason}
+              </div>
+            )}
+          </div>
+
+          {/* Winner spotlight */}
+          {!teamWin && (
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:14 }}>
+              <div style={{ fontFamily:"'Press Start 2P'", fontSize:10, color:'var(--neon-yellow)', letterSpacing:'0.15em' }}>
+                👑 CAMPEÃO
+              </div>
+              <div className="sprite-bob" style={{ animationDuration:'1s' }}>
+                <Sprite kind={sorted[0]?.avatar || FALLBACK_AV[0]} color={sorted[0]?.color || '#ffe600'} size={96} />
+              </div>
+              <div style={{ fontFamily:"'Press Start 2P'", fontSize:16, color:'var(--neon-yellow)', textShadow:'0 0 16px var(--neon-yellow)' }}>
+                {winnerName}
+              </div>
+            </div>
+          )}
+
+          {/* Ranking */}
+          <div className="px-frame px-frame--yellow" style={{ padding:22, width:'100%', maxWidth:560 }}>
+            <div style={{ fontFamily:"'Press Start 2P'", fontSize:11, color:'var(--neon-yellow)', marginBottom:16 }}>
+              &gt; RANKING_
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {sorted.map((p, i) => {
+                const cls = i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : '';
+                return (
+                  <div
+                    key={i}
+                    className={`rank-row ${cls}`}
+                    style={{ outline: p.isYou ? '2px dashed var(--neon-pink)' : 'none', outlineOffset: '-4px' }}
+                  >
+                    <div className="rank-num">{i + 1}º</div>
+                    <Sprite kind={p.avatar} color={p.color} size={36} />
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontFamily:"'Press Start 2P'", fontSize:11, color:p.color, textShadow:`0 0 6px ${p.color}` }}>
+                        {p.name}{p.isYou && <span style={{ color:'var(--ink-2)', marginLeft:8, fontSize:8 }}>(VOCÊ)</span>}
+                      </div>
+                      <div style={{ fontFamily:"'VT323'", fontSize:16, color:'var(--ink-2)', marginTop:2 }}>
+                        {p.isWinner ? (teamWin ? 'CAMPEÃO DE TIME' : 'CAMPEÃO') : i === 1 ? 'VICE' : i === 2 ? 'BRONZE' : 'PARTICIPANTE'}
+                      </div>
+                    </div>
+                    {p.isWinner && (
+                      <div style={{ fontFamily:"'Press Start 2P'", fontSize:16, color:'var(--neon-yellow)', textShadow:'0 0 8px var(--neon-yellow)' }}>
+                        👑
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display:'flex', gap:12, flexWrap:'wrap', justifyContent:'center' }}>
+            {lobbyRoomId && (
+              <button
+                className="btn-px btn-px--green"
+                onClick={() => { window.location.href = '/lobby/' + lobbyRoomId; }}
+              >
+                ▶ JOGAR NOVAMENTE
+              </button>
+            )}
+            <button
+              className="btn-px btn-px--cyan"
+              onClick={() => { window.location.href = '/'; }}
+            >
+              🏠 LOBBY PRINCIPAL
+            </button>
+            <button
+              className="btn-px btn-px--ghost"
+              onClick={() => {
+                const text = `Acabei de jogar ${gameTitle} no EgGames! ${isWinner ? 'VENCI! 🏆' : `${winnerName} venceu.`}`;
+                navigator.share?.({ title: 'EgGames', text }) || navigator.clipboard?.writeText(text);
+              }}
+            >
+              📤 COMPARTILHAR
+            </button>
+          </div>
+        </main>
+
+        <footer className="px-footer">© 2156 EgGames — TODOS OS BITS RESERVADOS</footer>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<EndScreen />);
+  </script>
+</body>
+</html>

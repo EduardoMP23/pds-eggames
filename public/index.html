@@ -1,285 +1,569 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PIXEL.LOBBY — Board Games</title>
-  <link rel="stylesheet" href="/css/pixel-lobby.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>EgGames · Jogos de tabuleiro com amigos</title>
+  <link rel="stylesheet" href="/css/pixel-lobby.css" />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='2' y='2' width='12' height='12' fill='%23ff2e88'/><rect x='4' y='4' width='2' height='2' fill='%23000'/><rect x='10' y='4' width='2' height='2' fill='%23000'/><rect x='4' y='10' width='8' height='2' fill='%2300f0ff'/></svg>" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+  <style>
+    body { background: var(--bg-0); }
+    #root { min-height: 100vh; position: relative; z-index: 2; }
+    .pl-screen { min-height: 100vh; display: flex; flex-direction: column; position: relative; z-index: 2; }
+    .pl-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; gap: 32px; }
+    .brand-bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 4px solid var(--neon-pink); background: linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0)); position: relative; z-index: 5; }
+    .brand-bar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -8px; height: 4px; background: var(--neon-cyan); box-shadow: 0 0 12px var(--neon-cyan); }
+    .brand-logo { display: flex; align-items: center; gap: 10px; font-family: 'Press Start 2P', monospace; font-size: 14px; color: var(--ink-0); text-decoration: none; }
+    .brand-right { display: flex; align-items: center; gap: 12px; }
+    .brand-player { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-0); }
+  </style>
 </head>
 <body>
-
-  <!-- FX Layers -->
   <div class="fx-grid"></div>
   <div class="fx-crt-glow"></div>
   <div class="fx-flicker"></div>
   <div class="fx-scanlines"></div>
-  <canvas id="particles"></canvas>
+  <canvas id="particles" style="position:fixed;inset:0;z-index:1;pointer-events:none"></canvas>
 
-  <!-- ═══════════════════════════════════════════════════════
-       SCREEN: ENTRY
-  ════════════════════════════════════════════════════════ -->
-  <div id="screen-entry" class="screen active">
+  <div id="root"></div>
 
-    <!-- Brand bar -->
-    <header class="brand-bar">
-      <span class="brand-bar__logo">PIXEL.LOBBY <span class="pxdot pxdot--pink"></span></span>
-      <div class="brand-bar__right">
-        <span class="t-mono" style="color:var(--ink-2);font-size:0.95rem">V1.3.7</span>
-      </div>
-    </header>
-
-    <!-- Ticker -->
-    <div class="ticker">
-      <div class="ticker-track" id="tickerTrack">
-        <span class="ticker-item">🎮 NOVA SALA CRIADA</span>
-        <span class="ticker-item">★ PIXEL.LOBBY V1.3.7</span>
-        <span class="ticker-item">⚡ 1.247 JOGADORES ONLINE</span>
-        <span class="ticker-item">🛸 BIRO_3000 venceu COUP em 4 rodadas</span>
-        <span class="ticker-item">☆ ITO — modo cooperativo</span>
-        <span class="ticker-item">🐝 HIVE — cerque a rainha</span>
-        <span class="ticker-item">◆ NEON_KAT entrou na sala</span>
-        <span class="ticker-item">⚡ Press START para jogar</span>
-        <span class="ticker-item">◇ MAIS JOGOS EM BREVE</span>
-        <!-- duplicate for seamless loop -->
-        <span class="ticker-item">🎮 NOVA SALA CRIADA</span>
-        <span class="ticker-item">★ PIXEL.LOBBY V1.3.7</span>
-        <span class="ticker-item">⚡ 1.247 JOGADORES ONLINE</span>
-        <span class="ticker-item">🛸 BIRO_3000 venceu COUP em 4 rodadas</span>
-        <span class="ticker-item">☆ ITO — modo cooperativo</span>
-        <span class="ticker-item">🐝 HIVE — cerque a rainha</span>
-        <span class="ticker-item">◆ NEON_KAT entrou na sala</span>
-        <span class="ticker-item">⚡ Press START para jogar</span>
-        <span class="ticker-item">◇ MAIS JOGOS EM BREVE</span>
-      </div>
-    </div>
-
-    <!-- Entry body -->
-    <main class="entry-body">
-      <div class="entry-title-wrap">
-        <h1 class="arcade-title glitch" data-text="PIXEL.LOBBY">PIXEL.LOBBY</h1>
-        <p class="tagline" style="margin-top:0.75rem">Multiplayer em tempo real &mdash; sem cadastro</p>
-      </div>
-
-      <div class="entry-form">
-        <div class="entry-form__label">SEU NOME DE JOGADOR</div>
-        <input
-          class="input-px"
-          id="playerName"
-          type="text"
-          placeholder="ENTER NAME..."
-          maxlength="20"
-          autocomplete="off"
-          spellcheck="false"
-        >
-        <button class="btn-px btn-px--lg" id="btnEnter" onclick="doEnter()">
-          ▶ JOGAR
-        </button>
-        <div id="entryError" style="font-family:'VT323',monospace;color:var(--neon-pink);font-size:1rem;min-height:1.2em;text-align:center"></div>
-      </div>
-    </main>
-
-    <footer class="px-footer">PIXEL.LOBBY &copy; 2156 &mdash; ALL SYSTEMS NOMINAL</footer>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════════
-       SCREEN: SELECT GAME
-  ════════════════════════════════════════════════════════ -->
-  <div id="screen-select" class="screen">
-
-    <!-- Brand bar -->
-    <header class="brand-bar">
-      <a href="#" class="brand-bar__logo" onclick="showScreen('screen-entry');return false;">
-        PIXEL.LOBBY <span class="pxdot pxdot--pink"></span>
-      </a>
-      <div class="brand-bar__right">
-        <div id="selectBrandSprite" style="width:32px;height:32px;position:relative;image-rendering:pixelated;"></div>
-        <span class="brand-bar__player" id="selectBrandName"></span>
-      </div>
-    </header>
-
-    <!-- Stats bar -->
-    <div class="stats-bar">
-      <span class="stats-bar__item">JOGADORES: <span class="stats-bar__val">1.247</span></span>
-      <span class="stats-bar__item">SALAS: <span class="stats-bar__val" id="openRoomsCount">–</span></span>
-      <span class="stats-bar__item">STATUS: <span class="stats-bar__val neon-green">ONLINE</span></span>
-    </div>
-
-    <main class="select-body">
-      <div class="select-body__title">ESCOLHA O JOGO</div>
-
-      <div class="tile-grid" id="tileGrid">
-
-        <!-- COUP -->
-        <div class="tile px-frame px-frame--yellow" data-game="coup" onclick="onGameClick('coup')">
-          <div class="tile-art" style="background:#1a1030">
-            <!-- Coup SVG: coin stacks + crown -->
-            <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-              <!-- coins stack left -->
-              <rect x="8"  y="36" width="14" height="4" fill="#ffe600"/>
-              <rect x="8"  y="30" width="14" height="4" fill="#ffe600"/>
-              <rect x="8"  y="24" width="14" height="4" fill="#ffe600"/>
-              <rect x="9"  y="23" width="12" height="2" fill="#ffb300"/>
-              <!-- coins stack middle -->
-              <rect x="25" y="36" width="14" height="4" fill="#ffe600"/>
-              <rect x="25" y="30" width="14" height="4" fill="#ffe600"/>
-              <rect x="26" y="29" width="12" height="2" fill="#ffb300"/>
-              <!-- crown -->
-              <rect x="22" y="8"  width="20" height="4" fill="#ffe600"/>
-              <rect x="18" y="12" width="28" height="8" fill="#ffe600"/>
-              <rect x="16" y="20" width="32" height="4" fill="#ffb300"/>
-              <rect x="22" y="4"  width="4"  height="4" fill="#ffe600"/>
-              <rect x="30" y="2"  width="4"  height="6" fill="#ffe600"/>
-              <rect x="38" y="4"  width="4"  height="4" fill="#ffe600"/>
-              <!-- gems -->
-              <rect x="22" y="14" width="4" height="4" fill="#ff2e88"/>
-              <rect x="30" y="14" width="4" height="4" fill="#00f0ff"/>
-              <rect x="38" y="14" width="4" height="4" fill="#39ff7a"/>
-            </svg>
-          </div>
-          <div class="tile-info">
-            <span class="tile-tag" style="background:var(--neon-yellow);color:var(--bg-0)">BLEFE</span>
-            <div class="tile-title" style="color:var(--neon-yellow)">COUP</div>
-            <div class="tile-desc">Minta. Roube. Elimine. Sobreviva à corte distópica do ano 2156.</div>
-            <div class="tile-meta">👥 2-6 jogadores &bull; ⏱ 15 min</div>
-          </div>
-        </div>
-
-        <!-- ITO -->
-        <div class="tile px-frame px-frame--cyan" data-game="ito" onclick="onGameClick('ito')">
-          <div class="tile-art" style="background:#071830">
-            <!-- ITO SVG: numbered cards -->
-            <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-              <rect x="4"  y="10" width="12" height="28" fill="#0d2040" stroke="#00f0ff" stroke-width="1"/>
-              <rect x="18" y="6"  width="12" height="28" fill="#0d2040" stroke="#00f0ff" stroke-width="1"/>
-              <rect x="32" y="10" width="12" height="28" fill="#0d2040" stroke="#00f0ff" stroke-width="1"/>
-              <rect x="46" y="14" width="12" height="28" fill="#0d2040" stroke="#00f0ff" stroke-width="1"/>
-              <!-- numbers on cards -->
-              <text x="10" y="29" font-family="monospace" font-size="8" fill="#00f0ff" text-anchor="middle">7</text>
-              <text x="24" y="25" font-family="monospace" font-size="8" fill="#00f0ff" text-anchor="middle">23</text>
-              <text x="38" y="29" font-family="monospace" font-size="8" fill="#00f0ff" text-anchor="middle">41</text>
-              <text x="52" y="33" font-family="monospace" font-size="8" fill="#00f0ff" text-anchor="middle">88</text>
-            </svg>
-          </div>
-          <div class="tile-info">
-            <span class="tile-tag" style="background:var(--neon-cyan);color:var(--bg-0)">COOP</span>
-            <div class="tile-title" style="color:var(--neon-cyan)">ITO</div>
-            <div class="tile-desc">Sem palavras. Sem números. Apenas você, seus amigos e a ordem cósmica.</div>
-            <div class="tile-meta">👥 2-10 jogadores &bull; ⏱ 20 min</div>
-          </div>
-        </div>
-
-        <!-- HIVE -->
-        <div class="tile px-frame px-frame--green" data-game="hive" onclick="onGameClick('hive')">
-          <div class="tile-art" style="background:#1a0d00">
-            <!-- HIVE SVG: hexagonal pieces -->
-            <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-              <!-- hex pieces using polygon approximation with rects -->
-              <polygon points="32,4 44,10 44,22 32,28 20,22 20,10" fill="#ff7a1f" stroke="#ffb060" stroke-width="1"/>
-              <polygon points="14,20 26,26 26,38 14,44 2,38 2,26"  fill="#cc5500" stroke="#ff7a1f" stroke-width="1"/>
-              <polygon points="50,20 62,26 62,38 50,44 38,38 38,26" fill="#cc5500" stroke="#ff7a1f" stroke-width="1"/>
-              <!-- bee body on center hex -->
-              <rect x="28" y="12" width="8" height="10" fill="#ffe600"/>
-              <rect x="29" y="14" width="2" height="6"  fill="#0a0420"/>
-              <rect x="33" y="14" width="2" height="6"  fill="#0a0420"/>
-            </svg>
-          </div>
-          <div class="tile-info">
-            <span class="tile-tag" style="background:var(--neon-orange);color:var(--bg-0)">ESTRATÉGIA</span>
-            <div class="tile-title" style="color:var(--neon-orange)">HIVE</div>
-            <div class="tile-desc">Sem tabuleiro. Sem sorte. Cerque a Rainha do oponente para vencer.</div>
-            <div class="tile-meta">👥 2 jogadores &bull; ⏱ 20 min</div>
-          </div>
-        </div>
-
-        <!-- Coming soon 1 -->
-        <div class="tile px-frame tile--coming">
-          <div class="tile-art" style="background:var(--bg-2)">
-            <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg">
-              <text x="32" y="28" font-family="monospace" font-size="10" fill="#6a5b9a" text-anchor="middle">?</text>
-            </svg>
-          </div>
-          <div class="tile-info">
-            <span class="tile-tag" style="background:var(--ink-2);color:var(--bg-0)">EM BREVE</span>
-            <div class="tile-title" style="color:var(--ink-2)">???</div>
-            <div class="tile-desc">Mais jogos chegando em breve...</div>
-          </div>
-        </div>
-
-        <!-- Coming soon 2 -->
-        <div class="tile px-frame tile--coming">
-          <div class="tile-art" style="background:var(--bg-2)">
-            <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg">
-              <text x="32" y="28" font-family="monospace" font-size="10" fill="#6a5b9a" text-anchor="middle">?</text>
-            </svg>
-          </div>
-          <div class="tile-info">
-            <span class="tile-tag" style="background:var(--ink-2);color:var(--bg-0)">EM BREVE</span>
-            <div class="tile-title" style="color:var(--ink-2)">???</div>
-            <div class="tile-desc">Mais jogos chegando em breve...</div>
-          </div>
-        </div>
-
-      </div><!-- /tile-grid -->
-
-      <!-- Open rooms -->
-      <div class="open-rooms">
-        <div class="open-rooms__title">SALAS ABERTAS <span class="pxdot pxdot--cyan"></span></div>
-        <div class="room-list" id="roomList">
-          <span class="rooms-empty">Nenhuma sala aberta</span>
-        </div>
-      </div>
-
-    </main>
-    <footer class="px-footer">PIXEL.LOBBY &copy; 2156 &mdash; ALL SYSTEMS NOMINAL</footer>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════════
-       SCREEN: AVATAR PICK
-  ════════════════════════════════════════════════════════ -->
-  <div id="screen-avatar" class="screen">
-
-    <!-- Brand bar -->
-    <header class="brand-bar">
-      <a href="#" class="brand-bar__logo" onclick="showScreen('screen-select');return false;">
-        ← PIXEL.LOBBY
-      </a>
-      <div class="brand-bar__right">
-        <span class="t-mono" style="color:var(--neon-yellow);font-size:1rem" id="avatarScreenGame"></span>
-      </div>
-    </header>
-
-    <main class="avatar-screen-body">
-
-      <!-- Preview panel -->
-      <div class="px-frame px-frame--cyan avatar-preview-panel">
-        <div class="avatar-preview-title">PREVIEW</div>
-        <div id="previewSprite" class="avatar-preview-sprite sprite-bob"></div>
-        <div class="avatar-preview-name" id="previewName"></div>
-        <div class="avatar-preview-game" id="previewGame"></div>
-        <button class="btn-px btn-px--cyan btn-px--lg mt-2" id="btnConfirmAvatar" onclick="confirmAvatar()" style="width:100%">
-          ✓ CONFIRMAR
-        </button>
-      </div>
-
-      <!-- Picker panel -->
-      <div class="px-frame px-frame--purple avatar-picker-panel">
-        <div>
-          <div class="avatar-picker-label">PERSONAGEM</div>
-          <div class="avatar-grid" id="avatarGrid"></div>
-        </div>
-        <div>
-          <div class="avatar-picker-label">COR</div>
-          <div class="color-row" id="colorRow"></div>
-        </div>
-      </div>
-
-    </main>
-    <footer class="px-footer">PIXEL.LOBBY &copy; 2156 &mdash; ALL SYSTEMS NOMINAL</footer>
-  </div>
-
-  <!-- Scripts -->
   <script src="/js/pixel-sprites.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/pages/index.js"></script>
+
+  <script type="text/babel">
+  const { useState, useEffect, useRef, useMemo } = React;
+
+  /* ── Sprite component ──────────────────────────────────────── */
+  function Sprite({ kind, color, size }) {
+    const ref = useRef(null);
+    const sz = size || 48;
+    useEffect(() => {
+      if (ref.current && window.renderSprite) {
+        window.renderSprite(ref.current, kind, color || '#ff2e88', sz);
+      }
+    }, [kind, color, sz]);
+    return <div ref={ref} style={{ width: sz, height: sz, flexShrink: 0, imageRendering: 'pixelated' }} />;
+  }
+
+  /* ── BrandBar ──────────────────────────────────────────────── */
+  function BrandBar({ playerName, avatarKind, avatarColor, onBack }) {
+    return (
+      <header className="brand-bar">
+        <div className="brand-logo">
+          <span className="pxdot pxdot--pink" />
+          EgGames
+          <span style={{ fontSize: 8, color: 'var(--neon-cyan)', letterSpacing: '0.2em', marginLeft: 6 }}>v1.3.7</span>
+        </div>
+        <div className="brand-right">
+          {playerName ? (
+            <>
+              {avatarKind && <Sprite kind={avatarKind} color={avatarColor} size={28} />}
+              <span className="brand-player">{playerName}</span>
+              {onBack && (
+                <button className="btn-px btn-px--ghost btn-px--sm" onClick={onBack}>SAIR</button>
+              )}
+            </>
+          ) : (
+            <span className="t-mono" style={{ color: 'var(--ink-2)', fontSize: '0.9rem' }}>V1.3.7</span>
+          )}
+        </div>
+      </header>
+    );
+  }
+
+  function Footer() {
+    return <footer className="px-footer">© 2156 EgGames — TODOS OS BITS RESERVADOS</footer>;
+  }
+
+  const TICKER_ITEMS = [
+    '🎮 NOVA SALA CRIADA', '★ EgGames V1.3.7', '⚡ 1.247 JOGADORES ONLINE',
+    '🛸 BIRO_3000 venceu COUP em 4 rodadas', '☆ ITO — modo cooperativo',
+    '🐝 HIVE — cerque a rainha', '◆ NEON_KAT entrou na sala',
+    '⚡ Press START para jogar', '◇ MAIS JOGOS EM BREVE',
+  ];
+
+  function Ticker() {
+    const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
+    return (
+      <div className="ticker">
+        <div className="ticker-track">
+          {items.map((it, i) => <span key={i} className="ticker-item">{it}</span>)}
+        </div>
+      </div>
+    );
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     SCREEN 1 — ENTRY (nome)
+  ══════════════════════════════════════════════════════════════ */
+  function EntryScreen({ onContinue }) {
+    const [name, setName] = useState('');
+    const [error, setError] = useState('');
+    const [shake, setShake] = useState(false);
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+      inputRef.current?.focus();
+      // Se já tem nome salvo, vai direto pro avatar
+      const saved = sessionStorage.getItem('playerName');
+      if (saved && saved.length >= 2) onContinue(saved);
+    }, []);
+
+    const submit = () => {
+      const n = name.trim().toUpperCase().slice(0, 16);
+      if (n.length < 2) {
+        setError('MÍNIMO 2 CARACTERES!');
+        setShake(true);
+        setTimeout(() => { setError(''); setShake(false); }, 2000);
+        inputRef.current?.focus();
+        return;
+      }
+      sessionStorage.setItem('playerName', n);
+      onContinue(n);
+    };
+
+    return (
+      <div className="pl-screen enter-bottom">
+        <BrandBar />
+        <Ticker />
+        <main className="pl-body">
+          <div style={{ textAlign: 'center' }}>
+            <div className="tagline" style={{ marginBottom: 16 }}>▮ SISTEMA DE JOGOS DE TABULEIRO MULTIPLAYER ▮</div>
+            <h1 className="arcade-title glitch" data-text="EgGames">EgGames</h1>
+            <div className="tagline" style={{ marginTop: 16, color: 'var(--neon-yellow)' }}>
+              JOGUE COM AMIGOS · SEM DOWNLOADS · SEM CADASTRO
+            </div>
+          </div>
+
+          <div
+            className="px-frame px-frame--cyan"
+            style={{
+              padding: 30, maxWidth: 480, width: '100%',
+              display: 'flex', flexDirection: 'column', gap: 18,
+              animation: shake ? 'shake 0.3s steps(4)' : undefined,
+            }}
+          >
+            <div style={{ fontFamily: "'Press Start 2P'", fontSize: 11, color: 'var(--neon-pink)' }}>
+              &gt; INSIRA SEU CALLSIGN_
+            </div>
+            <input
+              ref={inputRef}
+              className="input-px"
+              type="text"
+              placeholder="DIGITE SEU NOME..."
+              maxLength={16}
+              value={name}
+              onChange={e => setName(e.target.value.toUpperCase())}
+              onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Press Start 2P'", fontSize: 8, color: 'var(--ink-2)' }}>
+              <span>MIN 2 / MAX 16 CHARS</span>
+              <span>{name.length}/16</span>
+            </div>
+            {error && <div style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: 'var(--neon-pink)' }}>{error}</div>}
+            <button className="btn-px btn-px--cyan" onClick={submit}>▶ ENTRAR NA REDE</button>
+          </div>
+
+<div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {[['JOGADORES','1.247','var(--neon-cyan)'],['SALAS ATIVAS','86','var(--neon-pink)'],['JOGOS HOJE','3.412','var(--neon-yellow)']].map(([l,v,c]) => (
+              <div key={l} style={{ padding: '10px 14px', background: 'rgba(0,0,0,0.5)', boxShadow: `inset 0 0 0 2px ${c}`, textAlign: 'center', minWidth: 110 }}>
+                <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: 'var(--ink-2)', letterSpacing: '0.15em' }}>{l}</div>
+                <div style={{ fontFamily: "'Press Start 2P'", fontSize: 14, color: c, marginTop: 6, textShadow: `0 0 8px ${c}` }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </main>
+        <Footer />
+        <style>{`
+          @keyframes shake {
+            0%,100%{transform:translateX(0)}
+            25%{transform:translateX(-6px)}
+            75%{transform:translateX(6px)}
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     SCREEN 2 — AVATAR (logo após o nome)
+  ══════════════════════════════════════════════════════════════ */
+  const AV_KEYS = window.AVATAR_KEYS || ['knight','wizard','ninja','robot','alien','cat','ghost','skull','bat','dragon','pug','slime'];
+  const CLR_PALETTE = [
+    { name: 'magenta', hex: '#ff2e88' }, { name: 'cyan',    hex: '#00f0ff' },
+    { name: 'lime',    hex: '#39ff7a' }, { name: 'amber',   hex: '#ffe600' },
+    { name: 'orange',  hex: '#ff7a1f' }, { name: 'violet',  hex: '#b14aed' },
+    { name: 'crimson', hex: '#ff3860' }, { name: 'mint',    hex: '#5effc1' },
+  ];
+
+  function AvatarScreen({ playerName, onConfirm, onBack }) {
+    const [avatar, setAvatar] = useState(sessionStorage.getItem('playerAvatar') || AV_KEYS[0]);
+    const [color, setColor]   = useState(sessionStorage.getItem('playerColor')  || CLR_PALETTE[0].hex);
+
+    const confirm = () => {
+      sessionStorage.setItem('playerAvatar', avatar);
+      sessionStorage.setItem('playerColor',  color);
+      onConfirm({ avatar, color });
+    };
+
+    return (
+      <div className="pl-screen enter-bottom">
+        <BrandBar playerName={playerName} avatarKind={avatar} avatarColor={color} onBack={onBack} />
+        <main className="pl-body" style={{ justifyContent: 'flex-start', paddingTop: 36 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="tagline">// CUSTOMIZE SEU AVATAR //</div>
+            <h2 style={{ fontFamily: "'Press Start 2P'", fontSize: 'clamp(18px,3vw,28px)', color: 'var(--neon-pink)', marginTop: 12, textShadow: '0 0 18px rgba(255,46,136,0.7)' }}>
+              ESCOLHA SEU LOOK
+            </h2>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.5fr)', gap: 24, maxWidth: 920, width: '100%' }}>
+
+            {/* Preview */}
+            <div className="px-frame px-frame--cyan" style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+              <div style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: 'var(--ink-2)' }}>PREVIEW</div>
+              <div className="px-inset" style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: 160, width: '100%', borderRadius: 0 }}>
+                <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 50% 50%, ${color}33 0%, transparent 70%)` }} />
+                <div className="sprite-bob">
+                  <Sprite kind={avatar} color={color} size={120} />
+                </div>
+              </div>
+              <div style={{ fontFamily: "'Press Start 2P'", fontSize: 14, color, textShadow: `0 0 10px ${color}` }}>
+                {playerName}
+              </div>
+              <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: 'var(--ink-2)' }}>
+                · {avatar.toUpperCase()}
+              </div>
+            </div>
+
+            {/* Pickers */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div className="px-frame px-frame--purple" style={{ padding: 18 }}>
+                <div style={{ fontFamily: "'Press Start 2P'", fontSize: 10, color: 'var(--neon-purple)', marginBottom: 14 }}>
+                  &gt; SPRITE
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8 }}>
+                  {AV_KEYS.map(k => (
+                    <div
+                      key={k}
+                      onClick={() => setAvatar(k)}
+                      style={{
+                        width: 52, height: 52, background: 'rgba(0,0,0,0.6)',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: avatar === k
+                          ? 'inset 0 0 0 2px var(--neon-yellow), 0 0 12px var(--neon-yellow)'
+                          : 'inset 0 0 0 2px var(--ink-2)',
+                        transition: 'transform 0.08s steps(2)',
+                      }}
+                      onMouseEnter={e => { if (avatar !== k) e.currentTarget.style.transform = 'scale(1.06)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                    >
+                      <Sprite kind={k} color={avatar === k ? color : '#6a5b9a'} size={40} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="px-frame px-frame--yellow" style={{ padding: 18 }}>
+                <div style={{ fontFamily: "'Press Start 2P'", fontSize: 10, color: 'var(--neon-yellow)', marginBottom: 14 }}>
+                  &gt; COR
+                </div>
+                <div className="color-row">
+                  {CLR_PALETTE.map(c => (
+                    <div
+                      key={c.hex}
+                      className={`color-chip${color === c.hex ? ' selected' : ''}`}
+                      style={{ background: c.hex, color: c.hex }}
+                      onClick={() => setColor(c.hex)}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button className="btn-px btn-px--ghost" onClick={onBack} style={{ flex: '0 0 auto' }}>← VOLTAR</button>
+                <button className="btn-px btn-px--green" onClick={confirm} style={{ flex: 1 }}>
+                  ▶ ESCOLHER JOGO
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     SCREEN 3 — GAME SELECT
+  ══════════════════════════════════════════════════════════════ */
+  const GAMES = [
+    {
+      id: 'coup', title: 'COUP', tag: 'BLEFE', players: '2-6', duration: '15 min',
+      desc: 'Minta. Roube. Elimine. Sobreviva à corte distópica do ano 2156.',
+      accent: '#ffe600', frame: 'px-frame--yellow',
+    },
+    {
+      id: 'ito', title: 'ITO', tag: 'COOP', players: '2-10', duration: '20 min',
+      desc: 'Sem palavras. Sem números. Apenas você, seus amigos e a ordem cósmica.',
+      accent: '#00f0ff', frame: 'px-frame--cyan',
+    },
+    {
+      id: 'hive', title: 'HIVE', tag: 'ESTRATÉGIA', players: '2', duration: '20 min',
+      desc: 'Sem tabuleiro. Sem sorte. Cerque a Rainha do oponente para vencer.',
+      accent: '#ff7a1f', frame: 'px-frame--green',
+    },
+  ];
+
+  function CoupArt() {
+    return (
+      <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg" shapeRendering="crispEdges" style={{width:'100%',height:'100%'}}>
+        <rect x="8"  y="36" width="14" height="4" fill="#ffe600"/>
+        <rect x="8"  y="30" width="14" height="4" fill="#ffe600"/>
+        <rect x="8"  y="24" width="14" height="4" fill="#ffe600"/>
+        <rect x="9"  y="23" width="12" height="2" fill="#ffb300"/>
+        <rect x="25" y="36" width="14" height="4" fill="#ffe600"/>
+        <rect x="25" y="30" width="14" height="4" fill="#ffe600"/>
+        <rect x="26" y="29" width="12" height="2" fill="#ffb300"/>
+        <rect x="22" y="8"  width="20" height="4" fill="#ffe600"/>
+        <rect x="18" y="12" width="28" height="8" fill="#ffe600"/>
+        <rect x="16" y="20" width="32" height="4" fill="#ffb300"/>
+        <rect x="22" y="4"  width="4"  height="4" fill="#ffe600"/>
+        <rect x="30" y="2"  width="4"  height="6" fill="#ffe600"/>
+        <rect x="38" y="4"  width="4"  height="4" fill="#ffe600"/>
+        <rect x="22" y="14" width="4"  height="4" fill="#ff2e88"/>
+        <rect x="30" y="14" width="4"  height="4" fill="#00f0ff"/>
+        <rect x="38" y="14" width="4"  height="4" fill="#39ff7a"/>
+      </svg>
+    );
+  }
+  function ItoArt() {
+    return (
+      <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg" shapeRendering="crispEdges" style={{width:'100%',height:'100%'}}>
+        <rect x="4"  y="10" width="12" height="28" fill="#0d2040" stroke="#00f0ff" strokeWidth="1"/>
+        <rect x="18" y="6"  width="12" height="28" fill="#0d2040" stroke="#00f0ff" strokeWidth="1"/>
+        <rect x="32" y="10" width="12" height="28" fill="#0d2040" stroke="#00f0ff" strokeWidth="1"/>
+        <rect x="46" y="14" width="12" height="28" fill="#0d2040" stroke="#00f0ff" strokeWidth="1"/>
+        <text x="10" y="29" fontFamily="monospace" fontSize="8" fill="#00f0ff" textAnchor="middle">7</text>
+        <text x="24" y="25" fontFamily="monospace" fontSize="8" fill="#00f0ff" textAnchor="middle">23</text>
+        <text x="38" y="29" fontFamily="monospace" fontSize="8" fill="#00f0ff" textAnchor="middle">41</text>
+        <text x="52" y="33" fontFamily="monospace" fontSize="8" fill="#00f0ff" textAnchor="middle">88</text>
+      </svg>
+    );
+  }
+  function HiveArt() {
+    return (
+      <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg" shapeRendering="crispEdges" style={{width:'100%',height:'100%'}}>
+        <polygon points="32,4 44,10 44,22 32,28 20,22 20,10" fill="#ff7a1f" stroke="#ffb060" strokeWidth="1"/>
+        <polygon points="14,20 26,26 26,38 14,44 2,38 2,26"  fill="#cc5500" stroke="#ff7a1f" strokeWidth="1"/>
+        <polygon points="50,20 62,26 62,38 50,44 38,38 38,26" fill="#cc5500" stroke="#ff7a1f" strokeWidth="1"/>
+        <rect x="28" y="12" width="8" height="10" fill="#ffe600"/>
+        <rect x="29" y="14" width="2" height="6"  fill="#0a0420"/>
+        <rect x="33" y="14" width="2" height="6"  fill="#0a0420"/>
+      </svg>
+    );
+  }
+  const COVER = { coup: CoupArt, ito: ItoArt, hive: HiveArt };
+
+  function GameSelectScreen({ player, onBack }) {
+    const [hovered, setHovered]   = useState(null);
+    const [rooms, setRooms]       = useState([]);
+    const [creating, setCreating] = useState(false);
+
+    useEffect(() => {
+      loadRooms();
+      const t = setInterval(loadRooms, 5000);
+      return () => clearInterval(t);
+    }, []);
+
+    async function loadRooms() {
+      try {
+        const res  = await fetch('/api/rooms');
+        const data = await res.json();
+        setRooms(data);
+      } catch (_) {}
+    }
+
+    function createRoom(gameId) {
+      if (creating) return;
+      setCreating(true);
+      const socket = io();
+      socket.emit('room:create', { playerName: player.name, gameId, avatar: player.avatar, color: player.color });
+      socket.on('room:created', data => {
+        sessionStorage.setItem('playerId',     data.playerId);
+        sessionStorage.setItem('roomId',       data.roomId);
+        sessionStorage.setItem('selectedGame', gameId);
+        window.location.href = '/lobby/' + data.roomId;
+      });
+      socket.on('room:join-error', data => {
+        alert('Erro: ' + data.message);
+        setCreating(false);
+        socket.disconnect();
+      });
+    }
+
+    const hDesc = hovered ? GAMES.find(g => g.id === hovered)?.desc : null;
+
+    return (
+      <div className="pl-screen enter-bottom">
+        <BrandBar playerName={player.name} avatarKind={player.avatar} avatarColor={player.color} onBack={onBack} />
+        <main className="pl-body" style={{ justifyContent: 'flex-start', paddingTop: 28, gap: 24 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="tagline">// SELECT YOUR ARENA //</div>
+            <h2 style={{ fontFamily: "'Press Start 2P'", fontSize: 'clamp(18px,3.5vw,32px)', color: 'var(--neon-pink)', marginTop: 12, textShadow: '0 0 18px rgba(255,46,136,0.7)' }}>
+              ESCOLHA UM JOGO
+            </h2>
+            <div style={{ fontFamily: "'VT323'", fontSize: '1.15rem', color: 'var(--ink-1)', marginTop: 8, minHeight: '1.5em' }}>
+              {hDesc || 'Aponte para um cartucho para ver os detalhes.'}
+            </div>
+          </div>
+
+          <div className="tile-grid" style={{ maxWidth: 1100, width: '100%' }}>
+            {GAMES.map(g => {
+              const Cover = COVER[g.id];
+              return (
+                <div
+                  key={g.id}
+                  className={`tile px-frame ${g.frame}`}
+                  onMouseEnter={() => setHovered(g.id)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => createRoom(g.id)}
+                  style={{ cursor: creating ? 'wait' : 'pointer' }}
+                >
+                  <div className="tile-art" style={{ background: '#000' }}>
+                    <Cover />
+                    <div style={{ position: 'absolute', top: 8, left: 8, background: '#000', padding: '3px 6px', fontFamily: "'Press Start 2P'", fontSize: 8, color: g.accent }}>
+                      {g.tag}
+                    </div>
+                  </div>
+                  <div className="tile-info">
+                    <div className="tile-title" style={{ color: g.accent, textShadow: `2px 2px 0 #000, 0 0 10px ${g.accent}` }}>{g.title}</div>
+                    <div className="tile-desc">{g.desc}</div>
+                    <div className="tile-meta">👥 {g.players} · ⏱ {g.duration}</div>
+                    <button
+                      className="btn-px"
+                      disabled={creating}
+                      style={{
+                        background: g.accent, color: '#0a0420', marginTop: 8, width: '100%', fontSize: 10,
+                        boxShadow: `0 -4px 0 0 ${g.accent}, 0 4px 0 0 ${g.accent}, -4px 0 0 0 ${g.accent}, 4px 0 0 0 ${g.accent}, 0 0 14px ${g.accent}`,
+                      }}
+                    >
+                      {creating ? '⏳ CRIANDO...' : '▶ JOGAR'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {[0, 1].map(i => (
+              <div key={i} className="tile px-frame tile--coming">
+                <div className="tile-art" style={{ background: 'var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontFamily: "'Press Start 2P'", fontSize: 28, color: '#3a2a55' }}>?</span>
+                </div>
+                <div className="tile-info">
+                  <span className="tile-tag" style={{ background: 'var(--ink-2)', color: 'var(--bg-0)' }}>EM BREVE</span>
+                  <div className="tile-title" style={{ color: 'var(--ink-2)' }}>???</div>
+                  <div className="tile-desc">Mais cartuchos chegando à rede em breve.</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {rooms.length > 0 && (
+            <div className="open-rooms" style={{ maxWidth: 1100, width: '100%' }}>
+              <div className="open-rooms__title">SALAS ABERTAS <span className="pxdot pxdot--cyan" /></div>
+              <div className="room-list">
+                {rooms.map(r => {
+                  const g = GAMES.find(gg => gg.id === r.gameId) || { accent: 'var(--neon-purple)', title: (r.gameId || '').toUpperCase() };
+                  return (
+                    <div
+                      key={r.roomId}
+                      className="room-item"
+                      style={{ borderLeftColor: g.accent }}
+                      onClick={() => {
+                        sessionStorage.setItem('selectedGame', r.gameId);
+                        window.location.href = '/lobby/' + r.roomId;
+                      }}
+                    >
+                      <div>
+                        <div className="room-item__name">{g.title}</div>
+                        <div className="room-item__meta">Host: {r.hostName} · {r.playerCount}/{r.maxPlayers} jogadores</div>
+                      </div>
+                      <button className="btn-px btn-px--sm btn-px--cyan">ENTRAR</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     APP ROOT
+  ══════════════════════════════════════════════════════════════ */
+  function App() {
+    const [screen, setScreen] = useState('entry');
+    const [player, setPlayer] = useState({
+      name:   sessionStorage.getItem('playerName')   || '',
+      avatar: sessionStorage.getItem('playerAvatar') || 'knight',
+      color:  sessionStorage.getItem('playerColor')  || '#ff2e88',
+    });
+
+    useEffect(() => {
+      if (window.renderParticles) window.renderParticles();
+    }, []);
+
+    const avatarAlreadyChosen = () => !!sessionStorage.getItem('playerAvatar');
+
+    return (
+      <>
+        {screen === 'entry' && (
+          <EntryScreen
+            onContinue={name => {
+              setPlayer(p => ({ ...p, name }));
+              setScreen(avatarAlreadyChosen() ? 'select' : 'avatar');
+            }}
+          />
+        )}
+        {screen === 'avatar' && (
+          <AvatarScreen
+            playerName={player.name}
+            onConfirm={({ avatar, color }) => {
+              setPlayer(p => ({ ...p, avatar, color }));
+              setScreen('select');
+            }}
+            onBack={() => {
+              sessionStorage.removeItem('playerName');
+              setScreen('entry');
+            }}
+          />
+        )}
+        {screen === 'select' && (
+          <GameSelectScreen
+            player={player}
+            onBack={() => {
+              sessionStorage.removeItem('playerName');
+              sessionStorage.removeItem('playerAvatar');
+              sessionStorage.removeItem('playerColor');
+              setPlayer({ name: '', avatar: 'knight', color: '#ff2e88' });
+              setScreen('entry');
+            }}
+          />
+        )}
+      </>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
 </body>
 </html>

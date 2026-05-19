@@ -4,8 +4,142 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jogo — Board Games</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/base.css">
   <link id="gameCss" rel="stylesheet" href="">
+  <style>
+    /* ── Game Over Modal ──────────────────────────────────────── */
+    #gameOverModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+    }
+    #gameOverModal.visible { display: flex; }
+
+    .go-popup {
+      background: #07070f;
+      padding: 36px 28px;
+      max-width: 440px;
+      width: 90%;
+      text-align: center;
+      position: relative;
+      animation: go-pop 0.2s steps(3) both;
+    }
+    @keyframes go-pop {
+      from { opacity: 0; transform: scale(0.88) translateY(16px); }
+      to   { opacity: 1; transform: scale(1)    translateY(0); }
+    }
+
+    .go-popup--win  { box-shadow: inset 0 0 0 3px #ffe600, 0 0 48px rgba(255,230,0,0.35); }
+    .go-popup--lose { box-shadow: inset 0 0 0 3px #ff2e88, 0 0 48px rgba(255,46,136,0.35); }
+
+    .go-tag {
+      font-family: 'VT323', monospace;
+      font-size: 1rem;
+      letter-spacing: 0.2em;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    .go-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(22px, 6vw, 38px);
+      line-height: 1.2;
+      margin: 0 0 18px;
+      position: relative;
+    }
+    .go-title--win  { color: #ffe600; text-shadow: 0 0 20px #ffe600, 0 0 6px #ffe600; }
+    .go-title--lose { color: #ff2e88; text-shadow: 0 0 20px #ff2e88, 0 0 6px #ff2e88; }
+
+    .go-divider {
+      height: 3px;
+      background: repeating-linear-gradient(90deg, currentColor 0, currentColor 6px, transparent 6px, transparent 12px);
+      margin: 0 0 18px;
+      opacity: 0.5;
+    }
+    .go-divider--win  { color: #ffe600; }
+    .go-divider--lose { color: #ff2e88; }
+
+    .go-winner-label {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      color: #ffe600;
+      letter-spacing: 0.15em;
+      margin-bottom: 8px;
+    }
+    .go-winner-name {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(13px, 3.5vw, 18px);
+      color: #ffe600;
+      text-shadow: 0 0 14px #ffe600;
+      margin-bottom: 12px;
+      word-break: break-word;
+    }
+    .go-reason {
+      font-family: 'VT323', monospace;
+      font-size: 1.15rem;
+      color: #888;
+      margin-bottom: 24px;
+      min-height: 1.4em;
+    }
+
+    .go-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .go-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      padding: 12px 16px;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: transform 0.06s steps(2), box-shadow 0.06s steps(2);
+      text-decoration: none;
+      display: inline-block;
+      line-height: 1.4;
+    }
+    .go-btn:hover { transform: translateY(-2px); }
+
+    .go-btn--green {
+      background: #39ff7a;
+      color: #000;
+      box-shadow: 0 4px 0 #1a7a38, 0 0 20px rgba(57,255,122,0.4);
+    }
+    .go-btn--green:hover { box-shadow: 0 2px 0 #1a7a38, 0 0 28px rgba(57,255,122,0.6); }
+
+    .go-btn--cyan {
+      background: transparent;
+      color: #00f0ff;
+      box-shadow: inset 0 0 0 2px #00f0ff, 0 0 14px rgba(0,240,255,0.25);
+    }
+    .go-btn--cyan:hover { box-shadow: inset 0 0 0 2px #00f0ff, 0 0 24px rgba(0,240,255,0.5); }
+
+    /* ── Confetti ─────────────────────────────────────────────── */
+    #goConfetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 9998;
+    }
+    #goConfetti span {
+      position: absolute;
+      top: -20px;
+      animation: go-confetti-fall linear infinite;
+    }
+    @keyframes go-confetti-fall {
+      to { transform: translateY(110vh) rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
   <div id="loadingScreen" style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:1.5rem;color:var(--muted)">
@@ -21,12 +155,21 @@
     <div id="gameArea" class="game-area"></div>
   </div>
 
-  <div id="gameOverModal" class="modal-overlay" style="display:none">
-    <div class="modal">
-      <h2 id="gameOverTitle">Fim de Jogo!</h2>
-      <p id="gameOverMsg"></p>
-      <div style="display:flex;gap:1rem;justify-content:center;margin-top:1.5rem">
-        <a href="/" class="btn">Início</a>
+  <!-- ── Game Over Popup ───────────────────────────────────────── -->
+  <div id="goConfetti"></div>
+  <div id="gameOverModal">
+    <div class="go-popup" id="goPopup">
+      <div class="go-tag">// FIM DE PARTIDA //</div>
+      <h2 class="go-title" id="goTitle">GAME OVER</h2>
+      <div class="go-divider" id="goDivider"></div>
+      <div id="goWinnerBlock" style="display:none">
+        <div class="go-winner-label">👑 VENCEDOR</div>
+        <div class="go-winner-name" id="goWinnerName"></div>
+      </div>
+      <div class="go-reason" id="goReason"></div>
+      <div class="go-actions">
+        <button class="go-btn go-btn--green" id="goPlayAgain">▶ NOVA PARTIDA</button>
+        <button class="go-btn go-btn--cyan"  id="goSelectGame">🎮 SELECIONAR JOGO</button>
       </div>
     </div>
   </div>

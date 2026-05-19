@@ -44,21 +44,7 @@
   });
 
   socket.on('game:over', ({ winner, winnerName, reason, teamWin }) => {
-    let title, msg;
-    if (teamWin) {
-      title = '🏆 Time Venceu!';
-      msg   = reason || 'Parabéns, vocês completaram o desafio!';
-    } else if (winner && winner !== 'team') {
-      const isWinner = winner === myPlayerId;
-      title = isWinner ? '🏆 Você Venceu!' : '😢 Fim de Jogo';
-      msg   = `${winnerName} venceu!${reason ? ` (${reason})` : ''}`;
-    } else {
-      title = '😢 Fim de Jogo';
-      msg   = reason || 'O time perdeu.';
-    }
-    document.getElementById('gameOverTitle').textContent = title;
-    document.getElementById('gameOverMsg').textContent   = msg;
-    document.getElementById('gameOverModal').style.display = 'flex';
+    showGameOver({ winnerName, reason, teamWin, roomId });
   });
 
   function loadGame(gameId) {
@@ -87,6 +73,68 @@
 
   function sendAction(action) {
     socket.emit('game:action', { roomId, action });
+  }
+
+  function showGameOver({ winnerName, reason, teamWin, roomId }) {
+    const myName  = sessionStorage.getItem('playerName') || '';
+    const isWin   = teamWin || (winnerName && winnerName.toUpperCase() === myName.toUpperCase());
+
+    const modal   = document.getElementById('gameOverModal');
+    const popup   = document.getElementById('goPopup');
+    const title   = document.getElementById('goTitle');
+    const divider = document.getElementById('goDivider');
+    const wnBlock = document.getElementById('goWinnerBlock');
+    const wnName  = document.getElementById('goWinnerName');
+    const reas    = document.getElementById('goReason');
+
+    title.textContent = isWin ? 'VITÓRIA!' : 'GAME OVER';
+    title.className   = 'go-title ' + (isWin ? 'go-title--win' : 'go-title--lose');
+    popup.className   = 'go-popup '  + (isWin ? 'go-popup--win' : 'go-popup--lose');
+    divider.className = 'go-divider ' + (isWin ? 'go-divider--win' : 'go-divider--lose');
+
+    if (winnerName && !teamWin) {
+      wnBlock.style.display = '';
+      wnName.textContent    = winnerName;
+    } else if (teamWin) {
+      wnBlock.style.display = '';
+      document.querySelector('.go-winner-label').textContent = '🏆 TIME VENCEU!';
+      wnName.textContent = winnerName || '';
+    } else {
+      wnBlock.style.display = 'none';
+    }
+
+    reas.textContent = reason || '';
+
+    // Buttons
+    document.getElementById('goPlayAgain').onclick = () => {
+      window.location.href = '/lobby/' + roomId;
+    };
+    document.getElementById('goSelectGame').onclick = () => {
+      window.location.href = '/';
+    };
+
+    modal.classList.add('visible');
+
+    // Confetti for winners
+    if (isWin) {
+      const container = document.getElementById('goConfetti');
+      container.innerHTML = '';
+      const colors = ['#ff2e88','#00f0ff','#ffe600','#39ff7a','#b14aed','#ff7a1f'];
+      for (let i = 0; i < 60; i++) {
+        const s = document.createElement('span');
+        const color = colors[i % colors.length];
+        const size  = 6 + Math.floor(Math.random() * 6);
+        s.style.cssText = [
+          'left:'                + (Math.random() * 100) + '%',
+          'background:'          + color,
+          'width:'               + size + 'px',
+          'height:'              + size + 'px',
+          'animation-duration:'  + (3 + Math.random() * 3) + 's',
+          'animation-delay:'     + (Math.random() * 3) + 's',
+        ].join(';');
+        container.appendChild(s);
+      }
+    }
   }
 
   function updateTurnIndicator(state) {

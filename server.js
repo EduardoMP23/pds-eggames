@@ -59,6 +59,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 // SPA routes
 app.get('/lobby/:roomId', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'lobby.html')));
 app.get('/game/:roomId',  (_req, res) => res.sendFile(path.join(__dirname, 'public', 'game.html')));
+app.get('/end',           (_req, res) => res.sendFile(path.join(__dirname, 'public', 'end.html')));
 app.get('/health',        (_req, res) => res.json({ status: 'ok' }));
 
 // ── Composition root ──────────────────────────────────────────────────────────

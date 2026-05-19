@@ -1,100 +1,397 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PIXEL.LOBBY — Sala de Espera</title>
-  <link rel="stylesheet" href="/css/pixel-lobby.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>EgGames — Sala de Espera</title>
+  <link rel="stylesheet" href="/css/pixel-lobby.css" />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='2' y='2' width='12' height='12' fill='%23ff2e88'/><rect x='4' y='4' width='2' height='2' fill='%23000'/><rect x='10' y='4' width='2' height='2' fill='%23000'/><rect x='4' y='10' width='8' height='2' fill='%2300f0ff'/></svg>" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+  <style>
+    body { background: var(--bg-0); }
+    #root { min-height: 100vh; position: relative; z-index: 2; }
+    .pl-screen { min-height: 100vh; display: flex; flex-direction: column; position: relative; z-index: 2; }
+    .brand-bar { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; border-bottom:4px solid var(--neon-pink); background:linear-gradient(180deg,rgba(0,0,0,0.7),rgba(0,0,0,0)); position:relative; z-index:5; }
+    .brand-bar::after { content:''; position:absolute; left:0; right:0; bottom:-8px; height:4px; background:var(--neon-cyan); box-shadow:0 0 12px var(--neon-cyan); }
+    .brand-logo { display:flex; align-items:center; gap:10px; font-family:'Press Start 2P',monospace; font-size:14px; color:var(--ink-0); text-decoration:none; }
+    .brand-right { display:flex; align-items:center; gap:12px; }
+  </style>
 </head>
 <body>
-
-  <!-- FX Layers -->
   <div class="fx-grid"></div>
   <div class="fx-crt-glow"></div>
   <div class="fx-flicker"></div>
   <div class="fx-scanlines"></div>
-  <canvas id="particles"></canvas>
+  <canvas id="particles" style="position:fixed;inset:0;z-index:1;pointer-events:none"></canvas>
 
-  <!-- ═══════════════════════════════════════════════════════
-       LOBBY SCREEN
-  ════════════════════════════════════════════════════════ -->
-  <div class="screen active">
+  <div id="root"></div>
 
-    <!-- Brand bar -->
-    <header class="brand-bar">
-      <a href="/" class="brand-bar__logo">
-        ← PIXEL.LOBBY
-      </a>
-      <div class="brand-bar__right">
-        <div id="lobbyBrandSprite" style="width:32px;height:32px;position:relative;image-rendering:pixelated;"></div>
-        <span class="brand-bar__player" id="lobbyBrandName"></span>
-      </div>
-    </header>
-
-    <div class="lobby-screen-body">
-
-      <!-- Header bar: game info + room code -->
-      <div class="lobby-header-bar">
-        <div class="px-frame px-frame--yellow lobby-game-box">
-          <div class="lobby-game-box__label">JOGO</div>
-          <div class="lobby-game-box__name" id="lobbyGameName">—</div>
-        </div>
-
-        <div class="px-frame px-frame--cyan lobby-code-box">
-          <div class="lobby-code-box__label">CÓDIGO DA SALA</div>
-          <div class="lobby-code-box__row">
-            <div class="lobby-code-box__code" id="lobbyRoomCode">———</div>
-            <button class="btn-px btn-px--cyan btn-px--sm" onclick="copyLink()">COPIAR</button>
-          </div>
-          <div id="copyMsg" style="font-family:'VT323',monospace;color:var(--neon-green);font-size:1rem;min-height:1.2em"></div>
-        </div>
-      </div>
-
-      <!-- Main grid: players left, chat right -->
-      <div class="lobby-grid">
-
-        <!-- Players panel -->
-        <div class="px-frame px-frame--purple" style="padding:1.25rem">
-          <div class="players-panel-title">&gt; JOGADORES_ <span id="playerCount"></span></div>
-          <div class="players-list" id="playerList"></div>
-          <div class="waiting-msg" id="waitingMsg"></div>
-          <div class="lobby-actions mt-1">
-            <button class="btn-px btn-px--green" id="btnReady" onclick="toggleReady()">PRONTO</button>
-            <button class="btn-px btn-px--yellow" id="startBtn" onclick="startGame()" style="display:none">▶ INICIAR</button>
-          </div>
-          <div id="startMsg" style="font-family:'VT323',monospace;color:var(--ink-2);font-size:1rem;margin-top:0.4rem;min-height:1.2em"></div>
-        </div>
-
-        <!-- Chat panel -->
-        <div class="px-frame px-frame--cyan" style="padding:1.25rem">
-          <div class="chat-panel-title">CHAT_ <span class="pxdot pxdot--cyan"></span></div>
-          <div class="chat-box">
-            <div class="chat-log" id="chatMessages"></div>
-            <div class="chat-input-row">
-              <input
-                class="input-px"
-                id="chatInput"
-                type="text"
-                placeholder="Mensagem..."
-                maxlength="200"
-                onkeydown="chatKeyDown(event)"
-                autocomplete="off"
-              >
-              <button class="btn-px btn-px--cyan btn-px--sm" onclick="sendChat()">OK</button>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- /lobby-grid -->
-
-    </div><!-- /lobby-screen-body -->
-
-    <footer class="px-footer">PIXEL.LOBBY &copy; 2156 &mdash; ALL SYSTEMS NOMINAL</footer>
-  </div>
-
-  <!-- Scripts -->
   <script src="/js/pixel-sprites.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/pages/lobby.js"></script>
+
+  <script type="text/babel">
+  const { useState, useEffect, useRef, useMemo } = React;
+
+  /* ── Sprite ────────────────────────────────────────────────── */
+  function Sprite({ kind, color, size }) {
+    const ref = useRef(null);
+    const sz = size || 40;
+    useEffect(() => {
+      if (ref.current && window.renderSprite) window.renderSprite(ref.current, kind, color || '#ff2e88', sz);
+    }, [kind, color, sz]);
+    return <div ref={ref} style={{ width: sz, height: sz, flexShrink: 0, imageRendering: 'pixelated' }} />;
+  }
+
+  const FALLBACK_AV = window.AVATAR_KEYS || ['knight','wizard','ninja','robot','alien','cat','ghost','skull','bat','dragon','pug','slime'];
+  const FALLBACK_CL = ['#ff2e88','#00f0ff','#39ff7a','#ffe600','#ff7a1f','#b14aed','#ff3860','#5effc1'];
+  const GAME_META = {
+    coup: { title: 'COUP', accent: '#ffe600', frameClass: 'px-frame--yellow' },
+    ito:  { title: 'ITO',  accent: '#00f0ff', frameClass: 'px-frame--cyan'   },
+    hive: { title: 'HIVE', accent: '#ff7a1f', frameClass: 'px-frame--green'  },
+  };
+  const EMOJI_LIST = ['👋','🔥','😈','🎲','💀','⚡','🛸','👑'];
+
+  function BrandBar({ playerName, avatarKind, avatarColor, onBack }) {
+    return (
+      <header className="brand-bar">
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          {onBack && (
+            <button className="btn-px btn-px--ghost btn-px--sm" onClick={onBack}>← SAIR</button>
+          )}
+          <a href="/" className="brand-logo">
+            <span className="pxdot pxdot--pink" />
+            EgGames
+          </a>
+        </div>
+        <div className="brand-right">
+          {avatarKind && <Sprite kind={avatarKind} color={avatarColor} size={28} />}
+          {playerName && (
+            <span style={{ fontFamily:"'Press Start 2P'", fontSize:9, color:'var(--ink-0)' }}>{playerName}</span>
+          )}
+        </div>
+      </header>
+    );
+  }
+
+  function Footer() {
+    return <footer className="px-footer">© 2156 EgGames — TODOS OS BITS RESERVADOS</footer>;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     LOBBY SCREEN
+  ══════════════════════════════════════════════════════════════ */
+  function LobbyScreen() {
+    const roomId   = useMemo(() => window.location.pathname.split('/').pop(), []);
+    const myName   = sessionStorage.getItem('playerName');
+    const myAvatar = sessionStorage.getItem('playerAvatar') || FALLBACK_AV[0];
+    const myColor  = sessionStorage.getItem('playerColor')  || FALLBACK_CL[0];
+    const myIdRef  = useRef(sessionStorage.getItem('playerId'));
+
+    const socketRef = useRef(null);
+    const chatRef   = useRef(null);
+
+    const [players,  setPlayers]  = useState([]);
+    const [messages, setMessages] = useState([]);
+    const [draft,    setDraft]    = useState('');
+    const [isHost,   setIsHost]   = useState(false);
+    const [isReady,  setIsReady]  = useState(false);
+    const toggleReady = () => {
+      const next = !isReady;
+      setIsReady(next);
+      socketRef.current?.emit('lobby:ready', { roomId, ready: next });
+    };
+    const [gameData, setGameData] = useState(null);
+    const [copied,   setCopied]   = useState(false);
+    const [hostId,   setHostId]   = useState(null);
+
+    useEffect(() => {
+      if (!myName) {
+        sessionStorage.setItem('pendingRoom', roomId);
+        window.location.href = '/';
+        return;
+      }
+
+      if (window.renderParticles) window.renderParticles();
+
+      const socket = io();
+      socketRef.current = socket;
+      socket.emit('room:join', { roomId, playerName: myName, avatar: myAvatar, color: myColor, playerId: myIdRef.current });
+
+      socket.on('room:joined', data => {
+        myIdRef.current = data.playerId;
+        sessionStorage.setItem('playerId', data.playerId);
+        setIsHost(data.isHost);
+        setHostId(data.hostPlayerId || (data.players || [])[0]?.playerId || null);
+        setGameData(data);
+        setPlayers(data.players || []);
+        const gTitle = (GAME_META[data.gameId] || {}).title || (data.gameId || 'Jogo').toUpperCase();
+        setMessages(m => [...m, { kind: 'system', text: `Sala de ${gTitle} criada. Compartilhe o link com seus amigos!` }]);
+        if (data.status === 'playing') window.location.href = '/game/' + roomId;
+      });
+
+      socket.on('room:join-error', data => {
+        alert('Erro ao entrar na sala: ' + (data.message || 'Erro'));
+        window.location.href = '/';
+      });
+
+      socket.on('lobby:player-joined', data => {
+        setPlayers(data.players || []);
+        const np = (data.players || []).find(p => p.playerId === data.newPlayerId);
+        if (np) setMessages(m => [...m, { kind: 'system', text: `${np.playerName} entrou na sala.` }]);
+      });
+
+      socket.on('lobby:player-left', data => {
+        setPlayers(data.players || []);
+        if (data.newHostId) {
+          setHostId(data.newHostId);
+          if (data.newHostId === myIdRef.current) setIsHost(true);
+        }
+        setMessages(m => [...m, { kind: 'system', text: 'Um jogador saiu da sala.' }]);
+      });
+
+      socket.on('game:start', data => {
+        window.location.href = '/game/' + (data.roomId || roomId);
+      });
+
+      socket.on('chat:message', data => {
+        setMessages(m => [...m, { kind: 'chat', author: data.playerName, text: data.text }]);
+      });
+
+      socket.on('lobby:ready-update', data => {
+        setPlayers(data.players || []);
+      });
+
+      return () => socket.disconnect();
+    }, []);
+
+    useEffect(() => {
+      if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    }, [messages]);
+
+    const sendMessage = (text) => {
+      const t = (text !== undefined ? text : draft).trim();
+      if (!t) return;
+      socketRef.current?.emit('chat:message', { roomId, text: t });
+      if (text === undefined) setDraft('');
+    };
+
+    const startGame = () => socketRef.current?.emit('lobby:start', { roomId });
+
+    const copyLink = async () => {
+      try { await navigator.clipboard.writeText(window.location.href); } catch (_) {
+        const ta = document.createElement('textarea');
+        ta.value = window.location.href; ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        document.body.removeChild(ta);
+      }
+      setCopied(true); setTimeout(() => setCopied(false), 1800);
+    };
+
+    const game    = gameData ? (GAME_META[gameData.gameId] || { title: (gameData.gameId || '').toUpperCase(), accent: 'var(--neon-pink)', frameClass: 'px-frame--pink' }) : null;
+    const maxPl   = gameData?.maxPlayers || 6;
+    const connPl  = players.filter(p => p.connected !== false);
+    const minPl   = gameData?.minPlayers || 2;
+    const nonHostPl = connPl.filter(p => p.playerId !== hostId);
+    const allReady  = connPl.length >= minPl && nonHostPl.every(p => p.ready);
+    const canStart  = isHost && allReady;
+
+    function avatarFor(p, idx) {
+      return {
+        kind:  p.avatar || (p.playerId === myIdRef.current ? myAvatar : FALLBACK_AV[idx % FALLBACK_AV.length]),
+        color: p.color  || (p.playerId === myIdRef.current ? myColor  : FALLBACK_CL[idx % FALLBACK_CL.length]),
+      };
+    }
+
+    const leaveRoom = () => {
+      socketRef.current?.disconnect();
+      window.location.href = '/';
+    };
+
+    return (
+      <div className="pl-screen enter-bottom">
+        <BrandBar playerName={myName} avatarKind={myAvatar} avatarColor={myColor} onBack={leaveRoom} />
+
+        <main style={{ flex:1, padding:'24px 16px 32px', maxWidth:1200, margin:'0 auto', width:'100%', display:'flex', flexDirection:'column', gap:20 }}>
+
+          {/* Header: game info + room code */}
+          <div style={{ display:'flex', gap:16, alignItems:'stretch', flexWrap:'wrap' }}>
+            {game && (
+              <div className={`px-frame ${game.frameClass}`} style={{ padding:'14px 18px', display:'flex', alignItems:'center', gap:16, flex:'1 1 auto', minWidth:220 }}>
+                <div>
+                  <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)', letterSpacing:'0.1em' }}>JOGO SELECIONADO</div>
+                  <div style={{ fontFamily:"'Press Start 2P'", fontSize:18, color:game.accent, textShadow:`0 0 10px ${game.accent}`, marginTop:6 }}>{game.title}</div>
+                </div>
+                <div style={{ marginLeft:'auto', fontFamily:"'VT323'", fontSize:18, color:'var(--ink-1)' }}>
+                  {gameData?.minPlayers}–{gameData?.maxPlayers} jogadores
+                </div>
+              </div>
+            )}
+            <div className="px-frame px-frame--cyan" style={{ padding:'14px 18px', display:'flex', flexDirection:'column', gap:8, flex:'0 0 auto' }}>
+              <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)' }}>SALA</div>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <div style={{ fontFamily:"'Press Start 2P'", fontSize:14, color:'var(--neon-cyan)', textShadow:'0 0 8px var(--neon-cyan)' }}>#{roomId}</div>
+                <button className="btn-px btn-px--cyan btn-px--sm" onClick={copyLink}>
+                  {copied ? '✓ COPIADO' : '📋 COPIAR'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 2-col: players + chat */}
+          <div style={{ display:'grid', gridTemplateColumns:'1.2fr 1fr', gap:20, alignItems:'start' }}>
+
+            {/* Players */}
+            <div className="px-frame px-frame--purple" style={{ padding:20, display:'flex', flexDirection:'column', gap:14 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <div style={{ fontFamily:"'Press Start 2P'", fontSize:11, color:'var(--neon-purple)' }}>
+                  &gt; JOGADORES_ {connPl.length}/{maxPl}
+                </div>
+                <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)' }}>
+                  <span className="pxdot" style={{ width:6, height:6, marginRight:6, background:'var(--neon-green)', boxShadow:'0 0 6px var(--neon-green)' }} />
+                  AGUARDANDO
+                </div>
+              </div>
+
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {players.map((p, idx) => {
+                  const av = avatarFor(p, idx);
+                  const isMe = p.playerId === myIdRef.current;
+                  const isPHost = p.playerId === (hostId || (players[0] || {}).playerId);
+                  return (
+                    <div key={p.playerId} className="player-row" style={{ borderLeftColor: av.color, opacity: p.connected === false ? 0.5 : 1 }}>
+                      <div className="sprite-bob" style={{ animationDelay:`${idx * 0.2}s` }}>
+                        <Sprite kind={av.kind} color={av.color} size={36} />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div className="player-row__name" style={{ color:av.color, textShadow:`0 0 6px ${av.color}` }}>
+                          {p.playerName}{isMe ? ' (VOCÊ)' : ''}
+                        </div>
+                      </div>
+                      <div className="player-row__badges">
+                        {isPHost && <span className="status-host">👑 HOST</span>}
+                        {isMe && (
+                          <span
+                            className={isReady ? 'status-ready' : 'status-wait'}
+                            style={{ cursor:'pointer' }}
+                            onClick={toggleReady}
+                          >
+                            {isReady ? '✓ PRONTO' : '○ AGUARDE'}
+                          </span>
+                        )}
+                        {!isMe && !isPHost && (
+                          <span className={p.ready ? 'status-ready' : 'status-wait'}>
+                            {p.ready ? '✓ PRONTO' : 'AGUARD.'}
+                          </span>
+                        )}
+                        {p.connected === false && <span className="status-dc">DC</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {Array.from({ length: Math.max(0, maxPl - players.length) }).map((_, i) => (
+                  <div key={`e${i}`} className="player-row" style={{ borderLeftColor:'var(--ink-2)', opacity:0.4 }}>
+                    <div style={{ width:36, height:36, background:'rgba(0,0,0,0.5)', boxShadow:'inset 0 0 0 2px var(--ink-2)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Press Start 2P'", fontSize:12, color:'var(--ink-2)' }}>?</div>
+                    <div className="player-row__name" style={{ color:'var(--ink-2)' }}>SLOT VAZIO</div>
+                    <span className="status-empty">AGUARD.</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-hr" />
+
+              <div style={{ display:'flex', gap:10 }}>
+                <button
+                  className={`btn-px ${isReady ? 'btn-px--green' : 'btn-px--cyan'}`}
+                  onClick={toggleReady}
+                  style={{ flex:1 }}
+                >
+                  {isReady ? '✓ PRONTO' : '○ MARCAR PRONTO'}
+                </button>
+                {isHost && (
+                  <button
+                    className="btn-px btn-px--yellow"
+                    disabled={!canStart}
+                    onClick={startGame}
+                    style={{ flex:1 }}
+                  >
+                    ▶ INICIAR
+                  </button>
+                )}
+              </div>
+
+              <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)', textAlign:'center' }}>
+                {connPl.length < minPl
+                  ? `AGUARDANDO JOGADORES (${connPl.length}/${minPl})`
+                  : allReady
+                  ? '🟢 TODOS PRONTOS — PODE INICIAR'
+                  : `AGUARDANDO CONFIRMAÇÃO DOS JOGADORES...`}
+              </div>
+            </div>
+
+            {/* Chat */}
+            <div className="px-frame px-frame--cyan" style={{ padding:0, display:'flex', flexDirection:'column' }}>
+              <div style={{ padding:'14px 16px', borderBottom:'2px dashed rgba(0,240,255,0.3)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div style={{ fontFamily:"'Press Start 2P'", fontSize:11, color:'var(--neon-cyan)' }}>&gt; CHAT_</div>
+                <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)' }}>
+                  {messages.filter(m => m.kind === 'chat').length} MSGS
+                </div>
+              </div>
+
+              <div ref={chatRef} className="chat-log" style={{ flex:1, minHeight:260, maxHeight:360 }}>
+                {messages.map((m, i) => (
+                  m.kind === 'system' ? (
+                    <div key={i} className="chat-msg">
+                      <span className="chat-author" style={{ color:'var(--neon-yellow)' }}>· SYS</span>
+                      <span className="chat-text" style={{ color:'var(--neon-yellow)', fontStyle:'italic' }}>{m.text}</span>
+                    </div>
+                  ) : (
+                    <div key={i} className="chat-msg">
+                      <span className="chat-author">{m.author}:</span>
+                      <span className="chat-text">{m.text}</span>
+                    </div>
+                  )
+                ))}
+              </div>
+
+              <div className="emoji-row" style={{ padding:'6px 10px', borderTop:'1px dashed rgba(0,240,255,0.2)' }}>
+                {EMOJI_LIST.map(e => (
+                  <button key={e} className="emoji-btn" onClick={() => sendMessage(e)}>{e}</button>
+                ))}
+              </div>
+
+              <div style={{ display:'flex', borderTop:'2px solid var(--neon-cyan)' }}>
+                <input
+                  className="input-px"
+                  style={{ flex:1, boxShadow:'none', padding:'10px 12px', fontSize:16, fontFamily:"'VT323'" }}
+                  placeholder="MENSAGEM..."
+                  value={draft}
+                  maxLength={120}
+                  onChange={e => setDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
+                />
+                <button
+                  style={{ background:'var(--neon-pink)', color:'#000', border:'none', padding:'10px 14px', fontFamily:"'Press Start 2P'", fontSize:9, cursor:'pointer', letterSpacing:'0.1em' }}
+                  onClick={() => sendMessage()}
+                >ENVIAR</button>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+        <style>{`
+          @media (max-width: 680px) {
+            main > div:nth-child(2) { grid-template-columns: 1fr !important; }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<LobbyScreen />);
+  </script>
 </body>
 </html>

@@ -146,7 +146,7 @@ class SQLiteRoomRepository {
 
   // ── RoomRepositoryPort implementation ───────────────────────────────────────
 
-  createRoom(socketId, playerName, gameId, minPlayers, maxPlayers) {
+  createRoom(socketId, playerName, gameId, minPlayers, maxPlayers, avatar, color) {
     const roomId   = uuidv4().slice(0, 8);
     const playerId = uuidv4().slice(0, 8);
 
@@ -155,7 +155,7 @@ class SQLiteRoomRepository {
       gameId:       gameId || 'hive',
       hostPlayerId: playerId,
       status:       'lobby',
-      players:      [{ playerId, playerName, socketId, connected: true }],
+      players:      [{ playerId, playerName, socketId, connected: true, avatar: avatar || null, color: color || null }],
       minPlayers,
       maxPlayers,
       gameState:    null,
@@ -166,11 +166,15 @@ class SQLiteRoomRepository {
     return { room, playerId };
   }
 
-  joinRoom(socketId, playerName, roomId) {
+  joinRoom(socketId, playerName, roomId, avatar, color, playerId) {
     const room = this._rooms.get(roomId);
     if (!room) return { error: 'Room not found' };
 
-    const existing = room.players.find(p => p.playerName === playerName && !p.connected);
+    // Reconnect by playerId (creator rejoining lobby) or by name if disconnected
+    const existing = room.players.find(p =>
+      (playerId && p.playerId === playerId) ||
+      (p.playerName === playerName && !p.connected)
+    );
     if (!existing) {
       if (room.status === 'playing') return { error: 'Game already in progress' };
       if (room.players.filter(p => p.connected).length >= room.maxPlayers) return { error: 'Room is full' };
@@ -182,16 +186,22 @@ class SQLiteRoomRepository {
     }
 
     if (existing) {
+      if (existing._removeTimer) {
+        clearTimeout(existing._removeTimer);
+        existing._removeTimer = null;
+      }
       existing.socketId  = socketId;
       existing.connected = true;
+      if (avatar) existing.avatar = avatar;
+      if (color)  existing.color  = color;
       this._players.set(socketId, { roomId, playerId: existing.playerId, playerName });
       return { room, playerId: existing.playerId, reconnected: true };
     }
 
-    const playerId = uuidv4().slice(0, 8);
-    room.players.push({ playerId, playerName, socketId, connected: true });
-    this._players.set(socketId, { roomId, playerId, playerName });
-    return { room, playerId };
+    const newPlayerId = uuidv4().slice(0, 8);
+    room.players.push({ playerId: newPlayerId, playerName, socketId, connected: true, avatar: avatar || null, color: color || null });
+    this._players.set(socketId, { roomId, playerId: newPlayerId, playerName });
+    return { room, playerId: newPlayerId };
   }
 
   getRoom(roomId) {
@@ -211,7 +221,21 @@ class SQLiteRoomRepository {
     if (!room) return null;
 
     const player = room.players.find(p => p.playerId === playerId);
-    if (player) player.connected = false;
+    if (player) {
+      player.connected = false;
+
+      if (room.status === 'lobby') {
+        // Short grace period — allows page navigation to reconnect before removing
+        player._removeTimer = setTimeout(() => {
+          const r = this._rooms.get(roomId);
+          if (!r) return;
+          const p = r.players.find(p => p.playerId === playerId);
+          if (p && !p.connected) {
+            r.players = r.players.filter(p => p.playerId !== playerId);
+          }
+        }, 5_000);
+      }
+    }
     this._players.delete(socketId);
 
     const connectedCount = room.players.filter(p => p.connected).length;

@@ -15,13 +15,13 @@ class RoomService {
   }
 
   /** Create a new room and return { room, playerId }. */
-  createRoom(socketId, playerName, gameId, minPlayers, maxPlayers) {
-    return this._repo.createRoom(socketId, playerName, gameId, minPlayers, maxPlayers);
+  createRoom(socketId, playerName, gameId, minPlayers, maxPlayers, avatar, color) {
+    return this._repo.createRoom(socketId, playerName, gameId, minPlayers, maxPlayers, avatar, color);
   }
 
   /** Join or reconnect to an existing room. Returns { room, playerId, reconnected } or { error }. */
-  joinRoom(socketId, playerName, roomId) {
-    return this._repo.joinRoom(socketId, playerName, roomId);
+  joinRoom(socketId, playerName, roomId, avatar, color, playerId) {
+    return this._repo.joinRoom(socketId, playerName, roomId, avatar, color, playerId);
   }
 
   /** @returns {Object|null} */

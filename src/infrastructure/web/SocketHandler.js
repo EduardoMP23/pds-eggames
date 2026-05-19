@@ -28,26 +28,27 @@ class SocketHandler {
       console.log('Client connected:', socket.id);
 
       // ── Create room ───────────────────────────────────────────────────────
-      socket.on('room:create', ({ playerName, gameId }) => {
+      socket.on('room:create', ({ playerName, gameId, avatar, color }) => {
         const gid = GAME_CONFIGS[gameId] ? gameId : DEFAULT_GAME_ID;
         const { minPlayers, maxPlayers } = GAME_CONFIGS[gid];
-        const { room, playerId } = this._rooms.createRoom(socket.id, playerName, gid, minPlayers, maxPlayers);
+        const { room, playerId } = this._rooms.createRoom(socket.id, playerName, gid, minPlayers, maxPlayers, avatar, color);
         socket.join(room.roomId);
         socket.emit('room:created', {
-          roomId:     room.roomId,
+          roomId:       room.roomId,
           playerId,
           playerName,
-          gameId:     gid,
-          players:    this._playerList(room),
-          isHost:     true,
-          minPlayers: room.minPlayers,
-          maxPlayers: room.maxPlayers,
+          gameId:       gid,
+          players:      this._playerList(room),
+          isHost:       true,
+          hostPlayerId: room.hostPlayerId,
+          minPlayers:   room.minPlayers,
+          maxPlayers:   room.maxPlayers,
         });
       });
 
       // ── Join / reconnect ──────────────────────────────────────────────────
-      socket.on('room:join', ({ roomId, playerName }) => {
-        const result = this._rooms.joinRoom(socket.id, playerName, roomId);
+      socket.on('room:join', ({ roomId, playerName, avatar, color, playerId: existingPlayerId }) => {
+        const result = this._rooms.joinRoom(socket.id, playerName, roomId, avatar, color, existingPlayerId);
         if (result.error) return socket.emit('room:join-error', { message: result.error });
 
         const { room, playerId } = result;
@@ -58,19 +59,32 @@ class SocketHandler {
           roomId,
           playerId,
           playerName,
-          gameId:     room.gameId,
-          players:    playerList,
-          isHost:     room.hostPlayerId === playerId,
-          status:     room.status,
-          minPlayers: room.minPlayers,
-          maxPlayers: room.maxPlayers,
+          gameId:       room.gameId,
+          players:      playerList,
+          isHost:       room.hostPlayerId === playerId,
+          hostPlayerId: room.hostPlayerId,
+          status:       room.status,
+          minPlayers:   room.minPlayers,
+          maxPlayers:   room.maxPlayers,
         });
 
         if (room.status === 'playing' && room.gameState) {
           this._game.reconnect(room, playerId, socket.id);
         }
 
-        socket.to(roomId).emit('lobby:player-joined', { playerId, playerName, players: playerList });
+        socket.to(roomId).emit('lobby:player-joined', { newPlayerId: playerId, playerName, players: playerList });
+      });
+
+      // ── Ready toggle ──────────────────────────────────────────────────────
+      socket.on('lobby:ready', ({ roomId, ready }) => {
+        const info = this._rooms.getPlayerInfo(socket.id);
+        if (!info) return;
+        const room = this._rooms.getRoom(roomId);
+        if (!room || room.status !== 'lobby') return;
+        const player = room.players.find(p => p.playerId === info.playerId);
+        if (player) player.ready = !!ready;
+        const playerList = this._playerList(room);
+        this._io.to(roomId).emit('lobby:ready-update', { players: playerList });
       });
 
       // ── Start game (host only) ────────────────────────────────────────────
@@ -130,6 +144,9 @@ class SocketHandler {
       playerId:   p.playerId,
       playerName: p.playerName,
       connected:  p.connected,
+      avatar:     p.avatar || null,
+      color:      p.color  || null,
+      ready:      p.ready  || false,
     }));
   }
 }
