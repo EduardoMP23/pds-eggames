@@ -30,6 +30,7 @@ jobs:
             # Clone if first deploy, otherwise pull
             if [ -d "$APP_DIR/.git" ]; then
               cd "$APP_DIR"
+              git reset --hard
               git pull origin main
             else
               git clone "$REPO_URL" "$APP_DIR"
