@@ -199,7 +199,7 @@
     { name: 'crimson', hex: '#ff3860' }, { name: 'mint',    hex: '#5effc1' },
   ];
 
-  function AvatarScreen({ playerName, onConfirm, onBack }) {
+  function AvatarScreen({ playerName, joinRoomId, onConfirm, onBack }) {
     const [avatar, setAvatar] = useState(sessionStorage.getItem('playerAvatar') || AV_KEYS[0]);
     const [color, setColor]   = useState(sessionStorage.getItem('playerColor')  || CLR_PALETTE[0].hex);
 
@@ -287,7 +287,7 @@
               <div style={{ display: 'flex', gap: 12 }}>
                 <button className="btn-px btn-px--ghost" onClick={onBack} style={{ flex: '0 0 auto' }}>← VOLTAR</button>
                 <button className="btn-px btn-px--green" onClick={confirm} style={{ flex: 1 }}>
-                  ▶ ESCOLHER JOGO
+                  {joinRoomId ? '▶ ENTRAR NA SALA' : '▶ ESCOLHER JOGO'}
                 </button>
               </div>
             </div>
@@ -524,22 +524,37 @@
 
     const avatarAlreadyChosen = () => !!sessionStorage.getItem('playerAvatar');
 
+    function goAfterAvatar() {
+      const pending = sessionStorage.getItem('pendingRoom');
+      if (pending) {
+        sessionStorage.removeItem('pendingRoom');
+        window.location.href = '/lobby/' + pending;
+      } else {
+        setScreen('select');
+      }
+    }
+
     return (
       <>
         {screen === 'entry' && (
           <EntryScreen
             onContinue={name => {
               setPlayer(p => ({ ...p, name }));
-              setScreen(avatarAlreadyChosen() ? 'select' : 'avatar');
+              if (avatarAlreadyChosen()) {
+                goAfterAvatar();
+              } else {
+                setScreen('avatar');
+              }
             }}
           />
         )}
         {screen === 'avatar' && (
           <AvatarScreen
             playerName={player.name}
+            joinRoomId={sessionStorage.getItem('pendingRoom')}
             onConfirm={({ avatar, color }) => {
               setPlayer(p => ({ ...p, avatar, color }));
-              setScreen('select');
+              goAfterAvatar();
             }}
             onBack={() => {
               sessionStorage.removeItem('playerName');
