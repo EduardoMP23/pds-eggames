@@ -79,6 +79,10 @@ class GameService {
     const result = Game.applyAction(room.gameState, action, playerInfo.playerId);
     if (result.error) return { error: result.error };
 
+    if (action.type === 'reset') {
+      this._bus.toRoom(roomId, 'game:reset', {});
+    }
+
     if (result.events?.length > 0) {
       this._bus.toRoom(roomId, 'game:events', { events: result.events });
     }

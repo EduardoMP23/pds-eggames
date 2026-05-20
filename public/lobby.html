@@ -272,7 +272,7 @@
                       </div>
                       <div className="player-row__badges">
                         {isPHost && <span className="status-host">👑 HOST</span>}
-                        {isMe && (
+                        {isMe && !isPHost && (
                           <span
                             className={isReady ? 'status-ready' : 'status-wait'}
                             style={{ cursor:'pointer' }}
@@ -304,13 +304,15 @@
               <div className="px-hr" />
 
               <div style={{ display:'flex', gap:10 }}>
-                <button
-                  className={`btn-px ${isReady ? 'btn-px--green' : 'btn-px--cyan'}`}
-                  onClick={toggleReady}
-                  style={{ flex:1 }}
-                >
-                  {isReady ? '✓ PRONTO' : '○ MARCAR PRONTO'}
-                </button>
+                {!isHost && (
+                  <button
+                    className={`btn-px ${isReady ? 'btn-px--green' : 'btn-px--cyan'}`}
+                    onClick={toggleReady}
+                    style={{ flex:1 }}
+                  >
+                    {isReady ? '✓ PRONTO' : '○ MARCAR PRONTO'}
+                  </button>
+                )}
                 {isHost && (
                   <button
                     className="btn-px btn-px--yellow"

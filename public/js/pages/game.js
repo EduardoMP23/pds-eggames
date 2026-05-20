@@ -27,6 +27,10 @@
     loadGame(gameId);
   });
 
+  socket.on('game:reset', () => {
+    if (gameModule?.onReset) gameModule.onReset();
+  });
+
   socket.on('game:state-update', state => {
     lastState = state;
     if (gameModule?.render) {
