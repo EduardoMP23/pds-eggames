@@ -14,7 +14,7 @@
 
   const socket = io();
 
-  socket.emit('room:join', { roomId, playerName: myPlayerName || 'Jogador' });
+  socket.emit('room:join', { roomId, playerName: myPlayerName || 'Jogador', playerId: myPlayerId });
 
   socket.on('room:joined', data => {
     if (data.status !== 'playing') window.location.href = `/lobby/${roomId}`;

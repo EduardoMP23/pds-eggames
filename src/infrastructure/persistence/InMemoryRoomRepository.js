@@ -38,12 +38,17 @@ class InMemoryRoomRepository {
     return { room, playerId };
   }
 
-  joinRoom(socketId, playerName, roomId) {
+  joinRoom(socketId, playerName, roomId, _avatar, _color, playerId) {
     const room = this._rooms.get(roomId);
     if (!room) return { error: 'Room not found' };
 
-    // Allow reconnection before checking the game-in-progress guard
-    const existing = room.players.find(p => p.playerName === playerName && !p.connected);
+    // Allow reconnection before checking the game-in-progress guard.
+    // Match by playerId first (works even if old socket is still connected),
+    // then fall back to name + disconnected for legacy cases.
+    const existing = room.players.find(p =>
+      (playerId && p.playerId === playerId) ||
+      (!playerId && p.playerName === playerName && !p.connected)
+    );
     if (!existing) {
       if (room.status === 'playing') return { error: 'Game already in progress' };
       if (room.players.filter(p => p.connected).length >= room.maxPlayers) return { error: 'Room is full' };

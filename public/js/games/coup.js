@@ -333,7 +333,6 @@
               _tapState[idx] = { count: 0, timer: null };
             }
             _sendAction && _sendAction({ type: 'reveal-card', cardIndex: idx });
-            _flippedCards.delete(idx);
             showToast('Influência perdida');
           }, 700);
         }
