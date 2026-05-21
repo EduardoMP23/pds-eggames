@@ -1,14 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Nunito:wght@700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap');
 
 .ito-app {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   background: linear-gradient(135deg, #ccd983 0%, #87aad4 100%);
   font-family: 'Nunito', 'Segoe UI', sans-serif;
-  overflow: hidden;
   box-sizing: border-box;
   padding-bottom: env(safe-area-inset-bottom, 0);
+  align-items: center;
+  overflow: hidden;
+}
+
+/* ── Content wrapper (centered column, fixed width on desktop) ───────── */
+.ito-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 /* ── Top row ─────────────────────────────────────────────────────────── */
@@ -20,6 +33,7 @@
 .ito-top-left {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 /* ── Image buttons ───────────────────────────────────────────────────── */
@@ -32,37 +46,64 @@
   align-items: center;
   justify-content: center;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
 
 .ito-img-btn img {
-  width: 60px;
-  height: 60px;
+  height: clamp(28px, 5vh, 40px);
+  width: auto;
   object-fit: contain;
   display: block;
+}
+
+/* ── Hold to reset ───────────────────────────────────────────────────── */
+#itoResetBtn::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: #fff;
+  opacity: 0;
+  transform: rotate(0deg);
+}
+
+#itoResetBtn.ito-holding img {
+  opacity: 0.5;
+}
+
+#itoResetBtn.ito-holding::after {
+  opacity: 1;
+  animation: ito-hold-spin 2s linear forwards;
+}
+
+@keyframes ito-hold-spin {
+  from { transform: rotate(0deg);   border-top-color: #fff; }
+  to   { transform: rotate(360deg); border-top-color: #fff; }
 }
 
 /* ── Theme card ──────────────────────────────────────────────────────── */
 .ito-theme-card {
   background: white;
   border-radius: 20px;
-  padding: 18px 22px 14px;
-  margin: 8px 14px;
+  padding: clamp(10px, 2vh, 18px) 22px clamp(8px, 1.5vh, 14px);
+  margin: clamp(4px, 1vh, 8px) 14px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.10);
   flex-shrink: 0;
 }
 
 .ito-theme-name {
-  font-size: clamp(20px, 6vw, 30px);
+  font-size: clamp(16px, 4vh, 30px);
   font-weight: 900;
   color: #111;
   line-height: 1.2;
 }
 
 .ito-theme-scale {
-  font-size: 14px;
+  font-size: clamp(11px, 1.8vh, 14px);
   font-weight: 700;
   color: #d47800;
-  margin-top: 8px;
+  margin-top: clamp(4px, 1vh, 8px);
 }
 
 /* ── Number card ─────────────────────────────────────────────────────── */
@@ -71,43 +112,81 @@
   display: flex;
   padding: 4px 14px 8px;
   min-height: 0;
+  perspective: 1200px;
 }
 
 .ito-number-card {
   flex: 1;
-  background: #7B5528;
+  min-height: 0;
   border-radius: 22px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  cursor: pointer;
+}
+
+.ito-number-card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.ito-card-front,
+.ito-card-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.22);
-  min-height: 0;
-  transition: opacity 0.2s;
 }
 
-.ito-number-card.ito-number-hidden .ito-number {
-  opacity: 0;
+/* Face de trás: número oculto */
+.ito-card-front {
+  background: inherit;
+}
+
+.ito-card-front-icon {
+  font-size: clamp(60px, 15vh, 120px);
+  color: rgba(255,255,255,0.25);
+  font-family: 'Fredoka One', cursive;
+  user-select: none;
+}
+
+/* Face da frente: número revelado */
+.ito-card-back {
+  background: inherit;
+  transform: rotateY(180deg);
 }
 
 .ito-number {
-  font-family: 'Caveat', cursive;
-  font-size: clamp(90px, 25vw, 180px);
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(80px, 20vh, 180px);
   color: white;
   line-height: 1;
   user-select: none;
-  transition: opacity 0.2s;
 }
 
 /* ── Bottom bar ──────────────────────────────────────────────────────── */
 .ito-bottombar {
-  padding: 8px 14px 16px;
+  padding: clamp(4px, 1vh, 8px) 14px clamp(8px, 2vh, 16px);
   flex-shrink: 0;
   display: flex;
   justify-content: center;
 }
 
+.ito-reveal-btn {
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+.ito-reveal-btn:active {
+  transform: scale(0.88);
+  filter: brightness(0.85);
+}
+
 .ito-reveal-btn img {
   width: auto;
-  height: 80px;
+  height: clamp(50px, 8vh, 80px);
   object-fit: contain;
 }
