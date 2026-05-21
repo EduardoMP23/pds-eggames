@@ -1,54 +1,61 @@
 'use strict';
 
-/**
- * ItoGame — domain aggregate for an ITO cooperative game session.
- *
- * Phases:
- *   describing   — each player types a description for each of their cards
- *   ordering     — players collectively arrange all cards in order (no values visible)
- *   round-result — reveal values, show if order was correct
- *   finished     — game over (team won or lost all lives)
- */
-
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 10;
-const MAX_LIVES   = 3;
-const MAX_ROUNDS  = 3; // complete this many rounds to win
 
 const THEMES = [
-  'Coisas quentes', 'Coisas geladas', 'Coisas que queimam', 'Lugares frios do mundo',
-  'Bebidas pela temperatura', 'Coisas que derretem fácil',
-  'Coisas grandes', 'Coisas pesadas', 'Coisas pequenas que ainda dá pra ver',
-  'Coisas altas', 'Coisas longas', 'Coisas largas', 'Animais grandes',
-  'Construções altas', 'Coisas finas', 'Coisas profundas',
-  'Coisas rápidas', 'Coisas lentas', 'Meios de transporte por velocidade',
-  'Animais velozes', 'Esportes pela intensidade', 'Coisas que voam alto',
-  'Coisas caras', 'Coisas baratas que valem a pena', 'Profissões pelo salário',
-  'Itens de supermercado por preço', 'Carros por preço',
-  'Coisas assustadoras', 'Animais perigosos', 'Filmes de terror pelo medo que dão',
-  'Situações constrangedoras', 'Doenças pela gravidade', 'Insetos pelo nojo',
-  'Coisas doces', 'Coisas apimentadas', 'Coisas salgadas', 'Coisas amargas',
-  'Coisas azedas', 'Comidas calóricas', 'Frutas pela doçura', 'Comidas exóticas pela estranheza',
-  'Famosos mais conhecidos no mundo', 'Filmes mais assistidos',
-  'Músicas mais tocadas', 'Esportes mais praticados', 'Livros mais vendidos',
-  'Marcas mais reconhecidas', 'Países mais visitados',
-  'Coisas que dão felicidade', 'Coisas que dão raiva', 'Coisas que dão saudade',
-  'Coisas relaxantes', 'Coisas estressantes', 'Coisas fofas',
-  'Coisas que dão orgulho', 'Coisas nostálgicas', 'Coisas irritantes do dia a dia',
-  'Coisas difíceis de aprender', 'Esportes difíceis de praticar',
-  'Idiomas difíceis', 'Jogos pela dificuldade', 'Desafios físicos',
-  'Coisas que duram pouco', 'Coisas eternas', 'Tarefas domésticas pelo tempo gasto',
-  'Coisas raras de encontrar', 'Animais em extinção',
-  'Eventos que acontecem uma vez na vida', 'Pedras preciosas',
-  'Coisas úteis no dia a dia', 'Apps mais usados', 'Invenções que mudaram o mundo',
-  'Lugares bonitos para visitar', 'Paisagens naturais impressionantes',
-  'Coisas barulhentas', 'Coisas fedidas', 'Coisas brilhantes', 'Coisas que grudam',
-  'Sobremesas pelo sabor', 'Pratos pela dificuldade de preparo',
-  'Profissões pela dificuldade de formação', 'Presentes inesquecíveis pelo valor',
-  'Momentos vergonhosos', 'Coincidências improváveis',
+  { name: 'Coisas quentes',                       scale: '1-gelado / 100-fervendo'            },
+  { name: 'Coisas geladas',                        scale: '1-morno / 100-congelante'           },
+  { name: 'Coisas que queimam',                    scale: '1-frio / 100-queima demais'         },
+  { name: 'Lugares frios do mundo',                scale: '1-tropical / 100-congelante'        },
+  { name: 'Bebidas pela temperatura',              scale: '1-gelado / 100-quente'              },
+  { name: 'Coisas grandes',                        scale: '1-minúsculo / 100-gigantesco'       },
+  { name: 'Coisas pesadas',                        scale: '1-levíssimo / 100-pesadíssimo'      },
+  { name: 'Coisas altas',                          scale: '1-rente ao chão / 100-altíssimo'    },
+  { name: 'Coisas rápidas',                        scale: '1-lentíssimo / 100-velocíssimo'     },
+  { name: 'Coisas lentas',                         scale: '1-veloz / 100-lentíssimo'           },
+  { name: 'Meios de transporte por velocidade',    scale: '1-lentíssimo / 100-velocíssimo'     },
+  { name: 'Animais velozes',                       scale: '1-lentíssimo / 100-velocíssimo'     },
+  { name: 'Esportes pela intensidade',             scale: '1-relaxante / 100-intensíssimo'     },
+  { name: 'Coisas caras',                          scale: '1-baratíssimo / 100-caríssimo'      },
+  { name: 'Profissões pelo salário',               scale: '1-baixo salário / 100-milionário'   },
+  { name: 'Carros por preço',                      scale: '1-popular / 100-supercarro'         },
+  { name: 'Coisas assustadoras',                   scale: '1-inofensivo / 100-apavorante'      },
+  { name: 'Animais perigosos',                     scale: '1-inofensivo / 100-letal'           },
+  { name: 'Filmes de terror pelo medo que dão',    scale: '1-tranquilo / 100-apavorante'       },
+  { name: 'Situações constrangedoras',             scale: '1-normal / 100-mortificante'        },
+  { name: 'Doenças pela gravidade',                scale: '1-gripezinha / 100-fatal'           },
+  { name: 'Insetos pelo nojo',                     scale: '1-fofo / 100-repugnante'            },
+  { name: 'Coisas apimentadas',                    scale: '1-sem pimenta / 100-pimenta pura'   },
+  { name: 'Comidas calóricas',                     scale: '1-light / 100-hipercalórico'        },
+  { name: 'Frutas pela doçura',                    scale: '1-azedo / 100-docíssimo'            },
+  { name: 'Comidas exóticas pela estranheza',      scale: '1-familiar / 100-estranhíssimo'     },
+  { name: 'Famosos mais conhecidos no mundo',      scale: '1-desconhecido / 100-famoso'        },
+  { name: 'Filmes mais assistidos',                scale: '1-obscuro / 100-blockbuster'        },
+  { name: 'Músicas mais tocadas',                  scale: '1-raridade / 100-hit mundial'       },
+  { name: 'Esportes mais praticados',              scale: '1-raro / 100-popular'               },
+  { name: 'Marcas mais reconhecidas',              scale: '1-desconhecida / 100-global'        },
+  { name: 'Países mais visitados',                 scale: '1-isolado / 100-turístico'          },
+  { name: 'Manga/anime famoso',                    scale: '1-desconhecido / 100-famoso'        },
+  { name: 'Coisas relaxantes',                     scale: '1-estressante / 100-relaxante'      },
+  { name: 'Coisas estressantes',                   scale: '1-tranquilo / 100-estressante'      },
+  { name: 'Coisas fofas',                          scale: '1-feio / 100-fofíssimo'             },
+  { name: 'Coisas difíceis de aprender',           scale: '1-fácil / 100-muito difícil'        },
+  { name: 'Esportes difíceis de praticar',         scale: '1-fácil / 100-muito difícil'        },
+  { name: 'Idiomas difíceis',                      scale: '1-fácil / 100-muito difícil'        },
+  { name: 'Jogos pela dificuldade',                scale: '1-fácil / 100-impossível'           },
+  { name: 'Tarefas domésticas pelo tempo gasto',   scale: '1-rápido / 100-demoradíssimo'       },
+  { name: 'Coisas raras de encontrar',             scale: '1-comum / 100-raríssimo'            },
+  { name: 'Apps mais usados',                      scale: '1-obscuro / 100-indispensável'      },
+  { name: 'Invenções que mudaram o mundo',         scale: '1-irrelevante / 100-revolucionário' },
+  { name: 'Lugares bonitos para visitar',          scale: '1-sem graça / 100-deslumbrante'     },
+  { name: 'Coisas barulhentas',                    scale: '1-silencioso / 100-ensurdecedor'    },
+  { name: 'Coisas fedidas',                        scale: '1-sem cheiro / 100-insuportável'    },
+  { name: 'Sobremesas pelo sabor',                 scale: '1-sem graça / 100-delicioso'        },
+  { name: 'Pratos pela dificuldade de preparo',    scale: '1-simples / 100-muito difícil'      },
+  { name: 'Profissões pela dificuldade de formação', scale: '1-simples / 100-muito difícil'   },
+  { name: 'Momentos vergonhosos',                  scale: '1-normal / 100-mortificante'        },
 ];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function shuffle(arr) {
   const a = [...arr];
@@ -60,260 +67,55 @@ function shuffle(arr) {
 }
 
 function pickTheme(usedThemes) {
-  const available = THEMES.filter(t => !usedThemes.includes(t));
+  const available = THEMES.filter(t => !usedThemes.includes(t.name));
   const pool = available.length > 0 ? available : THEMES;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function dealRound(players, cardsPerPlayer) {
-  const total = players.length * cardsPerPlayer;
-  const deck  = shuffle(Array.from({ length: 100 }, (_, i) => i + 1));
-  const dealt  = shuffle(deck.slice(0, total));
-
+function dealNumbers(players) {
+  const numbers = shuffle(Array.from({ length: 100 }, (_, i) => i + 1));
   const hands = {};
-  let idx = 0;
-  for (const p of players) {
-    hands[p.playerId] = [];
-    for (let i = 0; i < cardsPerPlayer; i++) {
-      hands[p.playerId].push({ value: dealt[idx++], description: null });
-    }
-  }
+  players.forEach((p, i) => { hands[p.playerId] = numbers[i]; });
   return hands;
 }
 
-function buildInitialOrder(players, hands) {
-  const order = [];
-  for (const p of players) {
-    hands[p.playerId].forEach((_, cardIdx) => order.push({ playerId: p.playerId, cardIdx }));
-  }
-  return shuffle(order);
-}
-
-function addLog(state, message) {
-  state.log.push({ message, timestamp: Date.now() });
-  if (state.log.length > 40) state.log.shift();
-}
-
-// ── Public API ────────────────────────────────────────────────────────────────
-
 function initState(players) {
-  const theme = pickTheme([]);
-  const hands = dealRound(players, 1);
-
-  const state = {
-    players:       players.map(p => ({ playerId: p.playerId, playerName: p.playerName })),
-    lives:         MAX_LIVES,
-    round:         1,
-    cardsPerPlayer: 1,
-    theme,
-    usedThemes:    [theme],
-    hands,
-    describedBy:   [],       // playerIds who have submitted all descriptions
-    proposedOrder: buildInitialOrder(players, hands),
-    revealResults: null,
-    roundSuccess:  null,
-    phase:         'describing',
-    log:           [],
-    status:        'playing',
-    teamWon:       null,
-    winner:        null,
-    winnerName:    null,
+  const picked = pickTheme([]);
+  return {
+    players:    players.map(p => ({ playerId: p.playerId, playerName: p.playerName })),
+    theme:      picked.name,
+    themeScale: picked.scale,
+    usedThemes: [picked.name],
+    hands:      dealNumbers(players),
+    round:      1,
+    status:     'playing',
+    winner:     null,
+    winnerName: null,
   };
-
-  addLog(state, `Rodada 1 — Tema: "${theme}" — 1 carta por jogador`);
-  return state;
 }
 
 function applyAction(state, action, playerId) {
-  const playerIdx = state.players.findIndex(p => p.playerId === playerId);
-  if (playerIdx === -1) return { error: 'Jogador não encontrado' };
-
-  const player = state.players[playerIdx];
-
-  // ── describing ─────────────────────────────────────────────────────────────
-  if (state.phase === 'describing') {
-    if (action.type !== 'describe') return { error: 'Aguarde a fase de descrição' };
-    if (state.describedBy.includes(playerId)) return { error: 'Você já enviou suas descrições' };
-
-    const { descriptions } = action;
-    const hand = state.hands[playerId];
-
-    if (!Array.isArray(descriptions) || descriptions.length !== hand.length) {
-      return { error: `Envie exatamente ${hand.length} descrição(ões)` };
-    }
-    for (const { cardIdx, text } of descriptions) {
-      if (cardIdx < 0 || cardIdx >= hand.length) return { error: 'Índice de carta inválido' };
-      const t = (text || '').trim();
-      if (!t)         return { error: 'Descrição não pode estar vazia' };
-      if (t.length > 80) return { error: 'Descrição muito longa (máx 80 caracteres)' };
-      // Basic anti-cheat: block explicit numbers and ranges
-      if (/\b\d{1,3}\b/.test(t)) return { error: 'Não é permitido usar números na descrição' };
-      hand[cardIdx].description = t;
-    }
-
-    state.describedBy.push(playerId);
-    addLog(state, `${player.playerName} enviou sua(s) descrição(ões).`);
-
-    if (state.describedBy.length === state.players.length) {
-      state.phase = 'ordering';
-      // proposedOrder was already built at round start; just keep it
-      addLog(state, 'Todos descreveram! Agora ordenem as cartas.');
-    }
-    return {};
-  }
-
-  // ── ordering ───────────────────────────────────────────────────────────────
-  if (state.phase === 'ordering') {
-    if (action.type === 'reorder') {
-      const { order } = action;
-      if (!Array.isArray(order)) return { error: 'Ordem inválida' };
-
-      // Validate same set of (playerId, cardIdx)
-      const canonical = (arr) => arr.map(x => `${x.playerId}:${x.cardIdx}`).sort().join(',');
-      if (canonical(order) !== canonical(state.proposedOrder)) {
-        return { error: 'Ordem inválida: elementos não correspondem' };
-      }
-
-      state.proposedOrder = order;
-      return {};
-    }
-
-    if (action.type === 'confirm-order') {
-      // Score the round
-      const results = state.proposedOrder.map(({ playerId: pid, cardIdx }) => ({
-        playerId:    pid,
-        playerName:  state.players.find(p => p.playerId === pid)?.playerName,
-        cardIdx,
-        value:       state.hands[pid][cardIdx].value,
-        description: state.hands[pid][cardIdx].description,
-      }));
-
-      // Mark correct/incorrect based on strict ascending order
-      const values = results.map(r => r.value);
-      for (let i = 0; i < results.length; i++) {
-        const okPrev = i === 0 || values[i] > values[i - 1];
-        const okNext = i === results.length - 1 || values[i] < values[i + 1];
-        results[i].correct = okPrev && okNext;
-      }
-
-      const allCorrect = results.every(r => r.correct);
-      state.revealResults = results;
-      state.roundSuccess  = allCorrect;
-      state.phase         = 'round-result';
-
-      if (allCorrect) {
-        addLog(state, `Perfeito! Todas as ${results.length} cartas em ordem correta!`);
-      } else {
-        state.lives--;
-        addLog(state, `Ordem incorreta! -1 vida. Vidas restantes: ${state.lives}.`);
-      }
-
-      // ── Win / loss check ──────────────────────────────────────────────────
-      if (state.lives <= 0) {
-        state.status   = 'finished';
-        state.teamWon  = false;
-        state.phase    = 'finished';
-        state.winner   = null;
-        state.winnerName = null;
-        addLog(state, 'Sem mais vidas. O time perdeu!');
-        return { gameOver: true, winner: null, winnerName: null, teamWin: false, reason: 'O time perdeu todas as vidas' };
-      }
-
-      if (allCorrect && state.round >= MAX_ROUNDS) {
-        state.status   = 'finished';
-        state.teamWon  = true;
-        state.phase    = 'finished';
-        state.winner   = 'team';
-        state.winnerName = 'Time';
-        addLog(state, `Parabéns! O time completou todas as ${MAX_ROUNDS} rodadas!`);
-        return { gameOver: true, winner: 'team', winnerName: 'Time', teamWin: true, reason: `Completaram ${MAX_ROUNDS} rodadas com sucesso!` };
-      }
-
-      return {};
-    }
-
-    return { error: 'Ação inválida nesta fase' };
-  }
-
-  // ── round-result ───────────────────────────────────────────────────────────
-  if (state.phase === 'round-result') {
-    if (action.type !== 'next-round') return { error: 'Aguarde a próxima rodada' };
-
+  if (action.type === 'next-round') {
+    const picked = pickTheme(state.usedThemes);
+    state.theme      = picked.name;
+    state.themeScale = picked.scale;
+    state.usedThemes.push(picked.name);
+    state.hands = dealNumbers(state.players);
     state.round++;
-    state.cardsPerPlayer++;
-    state.describedBy   = [];
-    state.revealResults = null;
-    state.roundSuccess  = null;
-
-    const newTheme = pickTheme(state.usedThemes);
-    state.theme = newTheme;
-    state.usedThemes.push(newTheme);
-
-    state.hands = dealRound(state.players, state.cardsPerPlayer);
-    state.proposedOrder = buildInitialOrder(state.players, state.hands);
-    state.phase = 'describing';
-
-    addLog(state, `Rodada ${state.round} — Tema: "${newTheme}" — ${state.cardsPerPlayer} cartas por jogador`);
     return {};
   }
-
-  return { error: 'Fase inválida' };
+  return { error: 'Ação inválida' };
 }
 
 function getPublicState(state, forPlayerId) {
-  const myHand = state.hands[forPlayerId] || [];
-
-  // In ordering/result phases all descriptions are visible; in describing phase
-  // each player can see their own + already-submitted players' descriptions
-  const allCards = (state.phase === 'ordering' || state.phase === 'round-result' || state.phase === 'finished')
-    ? state.proposedOrder.map(({ playerId: pid, cardIdx }, i) => {
-        const card   = state.hands[pid]?.[cardIdx];
-        const owner  = state.players.find(p => p.playerId === pid);
-        const result = state.revealResults?.[i];
-        return {
-          posIdx:      i,
-          playerId:    pid,
-          playerName:  owner?.playerName,
-          cardIdx,
-          description: card?.description,
-          isMyCard:    pid === forPlayerId,
-          value:       (state.phase === 'round-result' || state.phase === 'finished') ? card?.value : null,
-          correct:     result?.correct ?? null,
-        };
-      })
-    : [];
-
   return {
-    phase:          state.phase,
-    lives:          state.lives,
-    maxLives:       MAX_LIVES,
-    round:          state.round,
-    maxRounds:      MAX_ROUNDS,
-    cardsPerPlayer: state.cardsPerPlayer,
-    theme:          state.theme,
-    myPlayerId:     forPlayerId,
-
-    players: state.players.map(p => ({
-      playerId:     p.playerId,
-      playerName:   p.playerName,
-      hasDescribed: state.describedBy.includes(p.playerId),
-    })),
-
-    myHand: myHand.map((card, idx) => ({
-      idx,
-      value:       card.value,
-      description: card.description,
-    })),
-
-    allCards,
-
-    iAmDescribed:  state.describedBy.includes(forPlayerId),
-    roundSuccess:  state.roundSuccess,
-    revealResults: state.revealResults,
-
-    log:        state.log.slice(-20),
+    theme:      state.theme,
+    themeScale: state.themeScale,
+    round:      state.round,
+    myNumber:   state.hands[forPlayerId] ?? null,
+    myPlayerId: forPlayerId,
+    players:    state.players.map(p => ({ playerId: p.playerId, playerName: p.playerName })),
     status:     state.status,
-    teamWon:    state.teamWon,
     winner:     state.winner,
     winnerName: state.winnerName,
   };

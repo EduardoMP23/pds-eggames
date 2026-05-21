@@ -112,7 +112,7 @@ a:hover { text-decoration: underline; }
 
 .game-area {
   width: 100%;
-  height: calc(100vh - 48px);
+  height: 100vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;

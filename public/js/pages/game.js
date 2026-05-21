@@ -33,10 +33,7 @@
 
   socket.on('game:state-update', state => {
     lastState = state;
-    if (gameModule?.render) {
-      gameModule.render(state, sendAction);
-      updateTurnIndicator(state);
-    }
+    if (gameModule?.render) gameModule.render(state, sendAction);
   });
 
   socket.on('game:action-error', ({ message }) => {
@@ -53,7 +50,6 @@
 
   function loadGame(gameId) {
     const meta = GAME_META[gameId] || GAME_META.hive;
-    document.getElementById('gameTitle').textContent = meta.title;
     const v = Date.now();
     document.getElementById('gameCss').href = meta.css + '?v=' + v;
 
@@ -67,10 +63,7 @@
       }
       document.getElementById('loadingScreen').style.display = 'none';
       document.getElementById('gameContainer').style.display = '';
-      if (lastState && gameModule?.render) {
-        gameModule.render(lastState, sendAction);
-        updateTurnIndicator(lastState);
-      }
+      if (lastState && gameModule?.render) gameModule.render(lastState, sendAction);
     };
     document.head.appendChild(script);
   }
@@ -141,25 +134,4 @@
     }
   }
 
-  function updateTurnIndicator(state) {
-    const el = document.getElementById('turnIndicator');
-    if (!el) return;
-    // ITO — cooperative indicator
-    if (state.phase === 'describing') {
-      el.textContent = state.iAmDescribed ? '✅ Descrição enviada' : '✏️ Descreva suas cartas';
-    } else if (state.phase === 'ordering') {
-      el.textContent = '🔀 Ordenem as cartas';
-    } else if (state.phase === 'round-result') {
-      el.textContent = state.roundSuccess ? '✅ Rodada vencida!' : '❌ Rodada perdida';
-    // Coup / Hive indicators
-    } else if (state.myTurn) {
-      el.textContent = '🟢 Sua vez!';
-    } else if (state.iAmAwaiting) {
-      el.textContent = '⚡ Reagir';
-    } else if (state.mustLoseInfluence) {
-      el.textContent = '💀 Escolha uma carta';
-    } else {
-      el.textContent = 'Aguardando...';
-    }
-  }
 })();

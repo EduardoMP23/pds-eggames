@@ -480,6 +480,12 @@
         cardsEl.appendChild(cardEl);
       });
 
+      // Player name — counter-rotated so it stays upright
+      const nameEl = document.createElement('div');
+      nameEl.className = 'coup-opp-name';
+      nameEl.style.transform = `rotate(${-angles[i]}deg)`;
+      nameEl.textContent = opp.playerName;
+
       // Coin counter — counter-rotated so the number stays upright
       const counter = document.createElement('div');
       counter.className = 'coup-opp-counter';
@@ -497,6 +503,7 @@
       counter.appendChild(coinImg);
       counter.appendChild(coinNum);
 
+      group.appendChild(nameEl);
       group.appendChild(cardsEl);
       group.appendChild(counter);
       el.appendChild(group);
@@ -559,7 +566,16 @@
       overlay.querySelectorAll('.coup-ex-card').forEach(card => {
         card.addEventListener('click', () => {
           const i = parseInt(card.dataset.i);
-          selected.has(i) ? selected.delete(i) : (selected.size < keepCount && selected.add(i));
+          if (selected.has(i)) {
+            selected.delete(i);
+          } else if (selected.size < keepCount) {
+            selected.add(i);
+          } else {
+            // Já atingiu o limite: remove o mais antigo e adiciona o novo
+            const [oldest] = selected;
+            selected.delete(oldest);
+            selected.add(i);
+          }
           draw();
         });
       });
