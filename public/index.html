@@ -19,6 +19,79 @@
     .brand-logo { display: flex; align-items: center; gap: 10px; font-family: 'Press Start 2P', monospace; font-size: 14px; color: var(--ink-0); text-decoration: none; }
     .brand-right { display: flex; align-items: center; gap: 12px; }
     .brand-player { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--ink-0); }
+
+    /* ── Game Select screen ── */
+    .gs-body {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: flex-start; padding: 28px 24px; gap: 24px;
+    }
+    .gs-card-container {
+      max-width: 1100px; width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px,1fr));
+      gap: 1.5rem;
+    }
+    .gs-rooms-section { max-width: 1100px; width: 100%; }
+
+    @media (max-width: 600px) {
+      .gs-screen { height: 100dvh; min-height: unset; overflow: hidden; }
+      .gs-body   { padding: 10px; gap: 10px; overflow: hidden; }
+      .gs-screen .px-footer { display: none; }
+      .gs-hovered-desc { display: none; }
+      .gs-card-container {
+        display: flex !important; flex-direction: row;
+        gap: 12px; overflow-x: auto; flex-shrink: 0;
+        scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; max-width: none; padding-bottom: 6px;
+      }
+      .gs-card-container::-webkit-scrollbar { display: none; }
+      .gs-card-container .tile { scroll-snap-align: start; flex: 0 0 72%; min-width: 0; }
+      .gs-rooms-section {
+        flex: 1; min-height: 0; overflow: hidden; max-width: none;
+        display: flex; flex-direction: column;
+      }
+      .gs-rooms-section .room-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    }
+    @media (max-width: 600px) and (max-height: 700px) {
+      .gs-card-container .tile-art  { height: 85px; }
+      .gs-card-container .tile-desc { display: none; }
+      .gs-card-container .tile-info { padding: 6px 8px; gap: 2px; }
+      .gs-card-container .btn-px    { margin-top: 2px; padding: 0.45rem 0.8rem; }
+    }
+
+    /* ── Avatar (skin) screen ── */
+    .av-screen { height: 100dvh; min-height: unset; overflow: hidden; display: flex; flex-direction: column; }
+    .av-layout {
+      flex: 1; overflow: hidden;
+      display: grid;
+      grid-template-areas: "title title" "preview icones" "preview cores" "preview buttons";
+      grid-template-columns: minmax(0,1fr) minmax(0,1.5fr);
+      grid-template-rows: auto 1fr auto auto;
+      gap: 20px; padding: 24px;
+      max-width: 920px; width: 100%; margin: 0 auto;
+    }
+    .av-title   { grid-area: title; text-align: center; }
+    .av-preview { grid-area: preview; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; overflow: hidden; }
+    .av-preview-stage { padding: 20px; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; min-height: 160px; }
+    .av-icones  { grid-area: icones; padding: 16px; display: flex; flex-direction: column; overflow: hidden; }
+    .av-sprite-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 8px; }
+    .av-cores   { grid-area: cores; padding: 16px; }
+    .av-buttons { grid-area: buttons; display: flex; gap: 12px; }
+
+    @media (max-width: 600px) {
+      .av-layout {
+        grid-template-areas: "preview cores" "icones icones" "buttons buttons";
+        grid-template-columns: 1fr 1.5fr;
+        grid-template-rows: auto 1fr auto;
+        gap: 8px; padding: 8px; max-width: none;
+      }
+      .av-title { display: none; }
+      .av-screen .px-footer { display: none; }
+      .av-preview { padding: 10px; gap: 6px; }
+      .av-preview-stage { min-height: 0; padding: 10px; }
+      .av-icones { padding: 10px; }
+      .av-cores { padding: 10px; }
+    }
   </style>
 </head>
 <body>
@@ -55,10 +128,9 @@
         <div className="brand-logo">
           <span className="pxdot pxdot--pink" />
           EgGames
-          <span style={{ fontSize: 8, color: 'var(--neon-cyan)', letterSpacing: '0.2em', marginLeft: 6 }}>v1.3.7</span>
         </div>
         <div className="brand-right">
-          {playerName ? (
+          {playerName && (
             <>
               {avatarKind && <Sprite kind={avatarKind} color={avatarColor} size={28} />}
               <span className="brand-player">{playerName}</span>
@@ -66,8 +138,6 @@
                 <button className="btn-px btn-px--ghost btn-px--sm" onClick={onBack}>SAIR</button>
               )}
             </>
-          ) : (
-            <span className="t-mono" style={{ color: 'var(--ink-2)', fontSize: '0.9rem' }}>V1.3.7</span>
           )}
         </div>
       </header>
@@ -113,7 +183,7 @@
     }, []);
 
     const submit = () => {
-      const n = name.trim().toUpperCase().slice(0, 16);
+      const n = name.trim().toUpperCase().slice(0, 10);
       if (n.length < 2) {
         setError('MÍNIMO 2 CARACTERES!');
         setShake(true);
@@ -154,14 +224,14 @@
               className="input-px"
               type="text"
               placeholder="DIGITE SEU NOME..."
-              maxLength={16}
+              maxLength={10}
               value={name}
               onChange={e => setName(e.target.value.toUpperCase())}
               onKeyDown={e => { if (e.key === 'Enter') submit(); }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Press Start 2P'", fontSize: 8, color: 'var(--ink-2)' }}>
-              <span>MIN 2 / MAX 16 CHARS</span>
-              <span>{name.length}/16</span>
+              <span>MIN 2 / MAX 10 CHARS</span>
+              <span>{name.length}/10</span>
             </div>
             {error && <div style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: 'var(--neon-pink)' }}>{error}</div>}
             <button className="btn-px btn-px--cyan" onClick={submit}>▶ ENTRAR NA REDE</button>
@@ -203,6 +273,17 @@
     const [avatar, setAvatar] = useState(sessionStorage.getItem('playerAvatar') || AV_KEYS[0]);
     const [color, setColor]   = useState(sessionStorage.getItem('playerColor')  || CLR_PALETTE[0].hex);
 
+    useEffect(() => {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overscrollBehavior = 'none';
+      return () => {
+        document.documentElement.style.overflow = '';
+        document.body.style.overscrollBehavior = '';
+      };
+    }, []);
+
+    const isMobile = window.innerWidth <= 600;
+
     const confirm = () => {
       sessionStorage.setItem('playerAvatar', avatar);
       sessionStorage.setItem('playerColor',  color);
@@ -210,89 +291,90 @@
     };
 
     return (
-      <div className="pl-screen enter-bottom">
+      <div className="pl-screen enter-bottom av-screen">
         <BrandBar playerName={playerName} avatarKind={avatar} avatarColor={color} onBack={onBack} />
-        <main className="pl-body" style={{ justifyContent: 'flex-start', paddingTop: 36 }}>
-          <div style={{ textAlign: 'center' }}>
+        <div className="av-layout">
+
+          {/* Title — desktop only */}
+          <div className="av-title">
             <div className="tagline">// CUSTOMIZE SEU AVATAR //</div>
             <h2 style={{ fontFamily: "'Press Start 2P'", fontSize: 'clamp(18px,3vw,28px)', color: 'var(--neon-pink)', marginTop: 12, textShadow: '0 0 18px rgba(255,46,136,0.7)' }}>
               ESCOLHA SEU LOOK
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.5fr)', gap: 24, maxWidth: 920, width: '100%' }}>
-
-            {/* Preview */}
-            <div className="px-frame px-frame--cyan" style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-              <div style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: 'var(--ink-2)' }}>PREVIEW</div>
-              <div className="px-inset" style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: 160, width: '100%', borderRadius: 0 }}>
-                <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 50% 50%, ${color}33 0%, transparent 70%)` }} />
-                <div className="sprite-bob">
-                  <Sprite kind={avatar} color={color} size={120} />
-                </div>
-              </div>
-              <div style={{ fontFamily: "'Press Start 2P'", fontSize: 14, color, textShadow: `0 0 10px ${color}` }}>
-                {playerName}
-              </div>
-              <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: 'var(--ink-2)' }}>
-                · {avatar.toUpperCase()}
+          {/* Preview */}
+          <div className="av-preview px-frame px-frame--cyan">
+            <div style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: 'var(--ink-2)' }}>PREVIEW</div>
+            <div className="px-inset av-preview-stage">
+              <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 50% 50%, ${color}33 0%, transparent 70%)` }} />
+              <div className="sprite-bob">
+                <Sprite kind={avatar} color={color} size={isMobile ? 72 : 120} />
               </div>
             </div>
-
-            {/* Pickers */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div className="px-frame px-frame--purple" style={{ padding: 18 }}>
-                <div style={{ fontFamily: "'Press Start 2P'", fontSize: 10, color: 'var(--neon-purple)', marginBottom: 14 }}>
-                  &gt; SPRITE
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8 }}>
-                  {AV_KEYS.map(k => (
-                    <div
-                      key={k}
-                      onClick={() => setAvatar(k)}
-                      style={{
-                        width: 52, height: 52, background: 'rgba(0,0,0,0.6)',
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: avatar === k
-                          ? 'inset 0 0 0 2px var(--neon-yellow), 0 0 12px var(--neon-yellow)'
-                          : 'inset 0 0 0 2px var(--ink-2)',
-                        transition: 'transform 0.08s steps(2)',
-                      }}
-                      onMouseEnter={e => { if (avatar !== k) e.currentTarget.style.transform = 'scale(1.06)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-                    >
-                      <Sprite kind={k} color={avatar === k ? color : '#6a5b9a'} size={40} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="px-frame px-frame--yellow" style={{ padding: 18 }}>
-                <div style={{ fontFamily: "'Press Start 2P'", fontSize: 10, color: 'var(--neon-yellow)', marginBottom: 14 }}>
-                  &gt; COR
-                </div>
-                <div className="color-row">
-                  {CLR_PALETTE.map(c => (
-                    <div
-                      key={c.hex}
-                      className={`color-chip${color === c.hex ? ' selected' : ''}`}
-                      style={{ background: c.hex, color: c.hex }}
-                      onClick={() => setColor(c.hex)}
-                      title={c.name}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button className="btn-px btn-px--ghost" onClick={onBack} style={{ flex: '0 0 auto' }}>← VOLTAR</button>
-                <button className="btn-px btn-px--green" onClick={confirm} style={{ flex: 1 }}>
-                  {joinRoomId ? '▶ ENTRAR NA SALA' : '▶ ESCOLHER JOGO'}
-                </button>
-              </div>
+            <div style={{ fontFamily: "'Press Start 2P'", fontSize: isMobile ? 10 : 14, color, textShadow: `0 0 10px ${color}` }}>
+              {playerName}
+            </div>
+            <div style={{ fontFamily: "'Press Start 2P'", fontSize: 8, color: 'var(--ink-2)' }}>
+              · {avatar.toUpperCase()}
             </div>
           </div>
-        </main>
+
+          {/* Icones */}
+          <div className="av-icones px-frame px-frame--purple">
+            <div style={{ fontFamily: "'Press Start 2P'", fontSize: 10, color: 'var(--neon-purple)', marginBottom: 14 }}>
+              &gt; SPRITE
+            </div>
+            <div className="av-sprite-grid">
+              {AV_KEYS.map(k => (
+                <div
+                  key={k}
+                  onClick={() => setAvatar(k)}
+                  style={{
+                    background: 'rgba(0,0,0,0.6)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    aspectRatio: '1',
+                    boxShadow: avatar === k
+                      ? 'inset 0 0 0 2px var(--neon-yellow), 0 0 12px var(--neon-yellow)'
+                      : 'inset 0 0 0 2px var(--ink-2)',
+                    transition: 'transform 0.08s steps(2)',
+                  }}
+                  onMouseEnter={e => { if (avatar !== k) e.currentTarget.style.transform = 'scale(1.06)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                >
+                  <Sprite kind={k} color={avatar === k ? color : '#6a5b9a'} size={isMobile ? 32 : 40} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Cores */}
+          <div className="av-cores px-frame px-frame--yellow">
+            <div style={{ fontFamily: "'Press Start 2P'", fontSize: 10, color: 'var(--neon-yellow)', marginBottom: 14 }}>
+              &gt; COR
+            </div>
+            <div className="color-row">
+              {CLR_PALETTE.map(c => (
+                <div
+                  key={c.hex}
+                  className={`color-chip${color === c.hex ? ' selected' : ''}`}
+                  style={{ background: c.hex, color: c.hex }}
+                  onClick={() => setColor(c.hex)}
+                  title={c.name}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="av-buttons">
+            <button className="btn-px btn-px--ghost" onClick={onBack} style={{ flexShrink: 0 }}>← VOLTAR</button>
+            <button className="btn-px btn-px--green" onClick={confirm} style={{ flex: 1 }}>
+              {joinRoomId ? '▶ ENTRAR NA SALA' : '▶ ESCOLHER JOGO'}
+            </button>
+          </div>
+
+        </div>
         <Footer />
       </div>
     );
@@ -408,21 +490,31 @@
 
     const hDesc = hovered ? GAMES.find(g => g.id === hovered)?.desc : null;
 
+    useEffect(() => {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overscrollBehavior = 'none';
+      return () => {
+        document.documentElement.style.overflow = '';
+        document.body.style.overscrollBehavior = '';
+      };
+    }, []);
+
     return (
-      <div className="pl-screen enter-bottom">
+      <div className="pl-screen enter-bottom gs-screen">
         <BrandBar playerName={player.name} avatarKind={player.avatar} avatarColor={player.color} onBack={onBack} />
-        <main className="pl-body" style={{ justifyContent: 'flex-start', paddingTop: 28, gap: 24 }}>
-          <div style={{ textAlign: 'center' }}>
+        <main className="gs-body">
+
+          <div style={{ textAlign: 'center', flexShrink: 0 }}>
             <div className="tagline">// SELECT YOUR ARENA //</div>
             <h2 style={{ fontFamily: "'Press Start 2P'", fontSize: 'clamp(18px,3.5vw,32px)', color: 'var(--neon-pink)', marginTop: 12, textShadow: '0 0 18px rgba(255,46,136,0.7)' }}>
               ESCOLHA UM JOGO
             </h2>
-            <div style={{ fontFamily: "'VT323'", fontSize: '1.15rem', color: 'var(--ink-1)', marginTop: 8, minHeight: '1.5em' }}>
+            <div className="gs-hovered-desc" style={{ fontFamily: "'VT323'", fontSize: '1.15rem', color: 'var(--ink-1)', marginTop: 8, minHeight: '1.5em' }}>
               {hDesc || 'Aponte para um cartucho para ver os detalhes.'}
             </div>
           </div>
 
-          <div className="tile-grid" style={{ maxWidth: 1100, width: '100%' }}>
+          <div className="gs-card-container">
             {GAMES.map(g => {
               const Cover = COVER[g.id];
               return (
@@ -473,33 +565,35 @@
             ))}
           </div>
 
-          {rooms.length > 0 && (
-            <div className="open-rooms" style={{ maxWidth: 1100, width: '100%' }}>
-              <div className="open-rooms__title">SALAS ABERTAS <span className="pxdot pxdot--cyan" /></div>
-              <div className="room-list">
-                {rooms.map(r => {
-                  const g = GAMES.find(gg => gg.id === r.gameId) || { accent: 'var(--neon-purple)', title: (r.gameId || '').toUpperCase() };
-                  return (
-                    <div
-                      key={r.roomId}
-                      className="room-item"
-                      style={{ borderLeftColor: g.accent }}
-                      onClick={() => {
-                        sessionStorage.setItem('selectedGame', r.gameId);
-                        window.location.href = '/lobby/' + r.roomId;
-                      }}
-                    >
-                      <div>
-                        <div className="room-item__name">{g.title}</div>
-                        <div className="room-item__meta">Host: {r.hostName} · {r.playerCount}/{r.maxPlayers} jogadores</div>
-                      </div>
-                      <button className="btn-px btn-px--sm btn-px--cyan">ENTRAR</button>
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="gs-rooms-section open-rooms">
+            <div className="open-rooms__title">
+              SALAS ABERTAS <span className="pxdot pxdot--cyan" />
             </div>
-          )}
+            <div className="room-list">
+              {rooms.length === 0 ? (
+                <div className="rooms-empty">Nenhuma sala aberta no momento.</div>
+              ) : rooms.map(r => {
+                const g = GAMES.find(gg => gg.id === r.gameId) || { accent: 'var(--neon-purple)', title: (r.gameId || '').toUpperCase() };
+                return (
+                  <div
+                    key={r.roomId}
+                    className="room-item"
+                    style={{ borderLeftColor: g.accent }}
+                    onClick={() => {
+                      sessionStorage.setItem('selectedGame', r.gameId);
+                      window.location.href = '/lobby/' + r.roomId;
+                    }}
+                  >
+                    <div>
+                      <div className="room-item__name">{g.title}</div>
+                      <div className="room-item__meta">Host: {r.hostName} · {r.playerCount}/{r.maxPlayers} jogadores</div>
+                    </div>
+                    <button className="btn-px btn-px--sm btn-px--cyan">ENTRAR</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
         </main>
         <Footer />

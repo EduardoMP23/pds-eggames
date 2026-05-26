@@ -51,6 +51,10 @@ class GameService {
     if (connected.length > Game.MAX_PLAYERS) {
       return { error: `Maximum ${Game.MAX_PLAYERS} players allowed` };
     }
+    const nonHostReady = connected.filter(p => p.playerId !== room.hostPlayerId);
+    if (nonHostReady.some(p => !p.ready)) {
+      return { error: 'Nem todos os jogadores estão prontos' };
+    }
 
     room.gameState = Game.initState(
       connected.map(p => ({ playerId: p.playerId, playerName: p.playerName }))
@@ -88,6 +92,7 @@ class GameService {
     }
 
     if (result.gameOver) {
+      room.players.forEach(p => { p.ready = false; });
       room.status = 'finished';
       this._bus.toRoom(roomId, 'game:over', {
         winner:     result.winner,

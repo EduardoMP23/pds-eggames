@@ -9,6 +9,7 @@
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { background: var(--bg-0); }
     #root { min-height: 100vh; position: relative; z-index: 2; }
@@ -17,6 +18,29 @@
     .brand-bar::after { content:''; position:absolute; left:0; right:0; bottom:-8px; height:4px; background:var(--neon-cyan); box-shadow:0 0 12px var(--neon-cyan); }
     .brand-logo { display:flex; align-items:center; gap:10px; font-family:'Press Start 2P',monospace; font-size:14px; color:var(--ink-0); text-decoration:none; }
     .brand-right { display:flex; align-items:center; gap:12px; }
+
+    /* ── Invite modal ── */
+    .invite-overlay {
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(0,0,0,0.88);
+      display: flex; align-items: center; justify-content: center;
+      animation: enter-bottom 0.2s steps(4);
+    }
+    .invite-box {
+      display: flex; flex-direction: column; gap: 18px;
+      padding: 24px; width: min(320px, 92vw); align-items: center;
+    }
+    .invite-box canvas, .invite-box img { image-rendering: pixelated; border: 4px solid var(--neon-cyan); box-shadow: 0 0 18px rgba(0,240,255,0.4); display: block; }
+    .invite-code-row {
+      width: 100%; display: flex; align-items: center; gap: 10px;
+      background: rgba(0,0,0,0.55); padding: 10px 14px;
+      box-shadow: inset 0 0 0 2px rgba(0,240,255,0.35);
+    }
+    .invite-code-text {
+      font-family: 'VT323', monospace; font-size: 1.2rem;
+      color: var(--neon-cyan); flex: 1;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -79,6 +103,55 @@
     return <footer className="px-footer">© 2156 EgGames — TODOS OS BITS RESERVADOS</footer>;
   }
 
+  /* ── Invite Modal ──────────────────────────────────────────── */
+  function InviteModal({ roomId, onClose }) {
+    const qrRef = useRef(null);
+    const [copied, setCopied] = useState(false);
+    const url = window.location.origin + '/lobby/' + roomId;
+
+    useEffect(() => {
+      if (!qrRef.current || !window.QRCode) return;
+      qrRef.current.innerHTML = '';
+      new QRCode(qrRef.current, {
+        text: url,
+        width: 220,
+        height: 220,
+        colorDark:  '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H,
+      });
+    }, []);
+
+    const copy = async () => {
+      try { await navigator.clipboard.writeText(url); } catch (_) {
+        const ta = document.createElement('textarea');
+        ta.value = url; ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        document.body.removeChild(ta);
+      }
+      setCopied(true); setTimeout(() => setCopied(false), 1800);
+    };
+
+    return (
+      <div className="invite-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="invite-box px-frame px-frame--cyan">
+          <div style={{ width: '100%', display: 'flex', alignItems: 'center' }}>
+            <button className="btn-px btn-px--ghost btn-px--sm" onClick={onClose}>←</button>
+            <span style={{ fontFamily: "'Press Start 2P'", fontSize: 9, color: 'var(--ink-2)', marginLeft: 12 }}>CONVITE</span>
+          </div>
+          <div ref={qrRef} style={{ lineHeight: 0 }} />
+          <div className="invite-code-row">
+            <span className="invite-code-text">{url}</span>
+            <button className="btn-px btn-px--cyan btn-px--sm" onClick={copy}>
+              {copied ? '✓ OK' : '📋 COPIAR'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /* ══════════════════════════════════════════════════════════════
      LOBBY SCREEN
   ══════════════════════════════════════════════════════════════ */
@@ -103,7 +176,7 @@
       socketRef.current?.emit('lobby:ready', { roomId, ready: next });
     };
     const [gameData, setGameData] = useState(null);
-    const [copied,   setCopied]   = useState(false);
+    const [showInvite, setShowInvite] = useState(false);
     const [hostId,   setHostId]   = useState(null);
 
     useEffect(() => {
@@ -179,16 +252,7 @@
 
     const startGame = () => socketRef.current?.emit('lobby:start', { roomId });
 
-    const copyLink = async () => {
-      try { await navigator.clipboard.writeText(window.location.href); } catch (_) {
-        const ta = document.createElement('textarea');
-        ta.value = window.location.href; ta.style.cssText = 'position:fixed;opacity:0';
-        document.body.appendChild(ta); ta.select();
-        try { document.execCommand('copy'); } catch (_) {}
-        document.body.removeChild(ta);
-      }
-      setCopied(true); setTimeout(() => setCopied(false), 1800);
-    };
+    const copyLink = () => setShowInvite(true);
 
     const game    = gameData ? (GAME_META[gameData.gameId] || { title: (gameData.gameId || '').toUpperCase(), accent: 'var(--neon-pink)', frameClass: 'px-frame--pink' }) : null;
     const maxPl   = gameData?.maxPlayers || 6;
@@ -212,6 +276,7 @@
 
     return (
       <div className="pl-screen enter-bottom">
+        {showInvite && <InviteModal roomId={roomId} onClose={() => setShowInvite(false)} />}
         <BrandBar playerName={myName} avatarKind={myAvatar} avatarColor={myColor} onBack={leaveRoom} />
 
         <main style={{ flex:1, padding:'24px 16px 32px', maxWidth:1200, margin:'0 auto', width:'100%', display:'flex', flexDirection:'column', gap:20 }}>
@@ -234,7 +299,7 @@
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <div style={{ fontFamily:"'Press Start 2P'", fontSize:14, color:'var(--neon-cyan)', textShadow:'0 0 8px var(--neon-cyan)' }}>#{roomId}</div>
                 <button className="btn-px btn-px--cyan btn-px--sm" onClick={copyLink}>
-                  {copied ? '✓ COPIADO' : '📋 COPIAR'}
+                  📋 CONVIDAR
                 </button>
               </div>
             </div>

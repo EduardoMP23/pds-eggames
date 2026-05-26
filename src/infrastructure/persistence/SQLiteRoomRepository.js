@@ -58,15 +58,30 @@ class SQLiteRoomRepository {
       "SELECT * FROM rooms WHERE status IN ('lobby', 'playing')"
     ).all();
 
+    let restored = 0;
     for (const row of rows) {
       const room = this._deserialize(row);
       // Sockets are gone after a restart — mark all players disconnected.
       room.players.forEach(p => { p.connected = false; });
+
+      // Drop rooms that have no players at all — they are orphaned.
+      if (room.players.length === 0) continue;
+
       this._rooms.set(room.roomId, room);
+      restored++;
+
+      // Schedule cleanup for rooms that have no connected players.
+      room._cleanupTimer = setTimeout(() => {
+        const r = this._rooms.get(room.roomId);
+        if (r && r.players.filter(p => p.connected).length === 0) {
+          this._rooms.delete(room.roomId);
+          console.log(`[Room] ${room.roomId} deletada por inatividade (restauração).`);
+        }
+      }, 30_000);
     }
 
-    if (rows.length > 0) {
-      console.log(`[DB] Restored ${rows.length} room(s) from database.`);
+    if (restored > 0) {
+      console.log(`[DB] Restored ${restored} room(s) from database.`);
     }
   }
 
@@ -194,6 +209,12 @@ class SQLiteRoomRepository {
       existing.connected = true;
       if (avatar) existing.avatar = avatar;
       if (color)  existing.color  = color;
+      existing.ready = false;
+      if (room.status === 'finished') {
+        room.status    = 'lobby';
+        room.gameState = null;
+        room.players.forEach(p => { p.ready = false; });
+      }
       this._players.set(socketId, { roomId, playerId: existing.playerId, playerName });
       return { room, playerId: existing.playerId, reconnected: true };
     }
@@ -239,11 +260,12 @@ class SQLiteRoomRepository {
     this._players.delete(socketId);
 
     const connectedCount = room.players.filter(p => p.connected).length;
-    if (connectedCount === 0 && room.status !== 'playing') {
+    if (connectedCount === 0) {
       room._cleanupTimer = setTimeout(() => {
         const r = this._rooms.get(roomId);
-        if (r && r.players.filter(p => p.connected).length === 0 && r.status !== 'playing') {
+        if (r && r.players.filter(p => p.connected).length === 0) {
           this._rooms.delete(roomId);
+          console.log(`[Room] ${roomId} deletada por inatividade.`);
         }
       }, 30_000);
     }
