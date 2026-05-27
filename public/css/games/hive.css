@@ -1,89 +1,294 @@
+/* ── Wrapper ──────────────────────────────────────────────────────────────── */
 .hive-wrapper {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   width: 100%;
   height: 100%;
+  background: linear-gradient(135deg, #FFCC00 0%, #BC8C00 50%, #7A4B00 100%);
+  overflow: hidden;
 }
 
-.hive-info-bar {
+/* ── Top bar ──────────────────────────────────────────────────────────────── */
+.hive-top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
   display: flex;
-  gap: 2rem;
-  font-size: 0.9rem;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background: var(--bg2);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  pointer-events: none; /* pass through to SVG */
 }
-.hive-info-bar .player-label { color: var(--muted); }
-.hive-info-bar .player-label.active { color: var(--text); font-weight: 700; }
+.hive-top-bar .hive-top-btn {
+  pointer-events: all;
+}
 
-.hive-center-btn {
-  margin-left: auto;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 1.1rem;
-  width: 2rem;
-  height: 2rem;
+.hive-top-btn {
+  width: 56px;
+  height: 56px;
+  background: #c9940a;
+  border: none;
+  border-radius: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.15s;
+  color: #1a1200;
+  transition: background 0.15s, transform 0.1s;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.hive-center-btn:hover { border-color: var(--accent); }
+.hive-top-btn:hover  { background: #a87b08; transform: scale(1.04); }
+.hive-top-btn svg    { pointer-events: none; display: block; }
 
-.hive-board-svg {
-  display: block;
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-}
+.hive-top-btn:active { transform: scale(0.97); }
+.hive-top-btn svg    { display: block; }
 
-.hive-hand-panel {
+/* ── Main area ────────────────────────────────────────────────────────────── */
+.hive-main {
+  position: absolute;
+  inset: 0;
   display: flex;
-  gap: 1rem;
+  align-items: stretch;
+  pointer-events: none; /* pass through to SVG */
+}
+
+
+.hand-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #3a2800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.4rem;
+  text-align: center;
+}
+
+.hand-hexes {
+  display: flex;
   flex-wrap: wrap;
+  gap: 8px;
   justify-content: center;
-  padding: 0.5rem 1rem;
-  background: var(--bg2);
-  border-top: 1px solid var(--border);
+  align-content: flex-start;
+}
+
+.hand-empty {
+  font-size: 0.78rem;
+  color: #5a3e00;
+  font-style: italic;
+}
+
+/* ── Hex piece button ─────────────────────────────────────────────────────── */
+/* Two-layer clip-path approach: outer = "border", inner = fill */
+.hex-btn-wrap {
+  position: relative;
+  display: inline-flex;
+  transition: transform 0.12s;
+}
+.hex-btn-wrap:not(.hx-disabled):hover { transform: scale(1.07); }
+.hex-btn-wrap.hx-selected             { transform: scale(1.1); }
+.hex-btn-wrap.hx-disabled             { opacity: 0.55; }
+
+.hex-btn-outer {
+  width: 88px;
+  height: 76px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+}
+
+.hex-btn-inner {
+  width: 80px;
+  height: 68px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  user-select: none;
+}
+
+.hx-letter {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  font-family: sans-serif;
+}
+
+.hx-count {
+  position: absolute;
+  bottom: 11px;
+  left: 13px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  font-family: sans-serif;
+}
+
+/* ── Board SVG ────────────────────────────────────────────────────────────── */
+.hive-board-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: all;
+  z-index: 1;
+}
+
+/* ── Right area ───────────────────────────────────────────────────────────── */
+.hive-right {
+  position: absolute;
+  right: 0;
+  top: 3rem;
+  bottom: 3rem;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 10;
+}
+.hive-right > * {
+  pointer-events: all;
+}
+
+/* ── Toggle button ────────────────────────────────────────────────────────── */
+.hive-toggle-btn {
+  width: 44px;
+  height: 66px;
+  background: #c9940a;
+  border: none;
+  border-radius: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a1200;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  transition: background 0.15s, transform 0.1s;
+  margin-right: 6px;
+  flex-shrink: 0;
+  z-index: 2;
+}
+.hive-toggle-btn:hover  { background: #a87b08; transform: scale(1.05); }
+.hive-toggle-btn:active { transform: scale(0.97); }
+.hive-toggle-btn svg    { pointer-events: none; display: block; }
+
+/* ── Side panel (players + hand) ─────────────────────────────────────────── */
+.hive-side-panel {
+  width: 110px;
+  align-self: stretch;
+  background: #f9dc19;
+  border-radius: 22px 0 0 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 1rem 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.25s ease, padding 0.25s ease;
+}
+.hive-side-panel.panel-collapsed {
+  width: 0;
+  padding: 0;
+}
+
+.panel-divider {
+  width: 70%;
+  height: 2px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 1px;
   flex-shrink: 0;
 }
 
-.hive-hand {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0.75rem 1rem;
+/* player panel sits inside side-panel */
+#hivePlayerPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
 }
-.hive-hand h3 { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; margin-bottom: 0.5rem; }
-.hive-hand .pieces { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
-.hive-piece-btn {
-  background: var(--bg3);
-  border: 2px solid var(--border);
-  border-radius: 6px;
-  padding: 0.35rem 0.7rem;
-  font-size: 0.85rem;
-  cursor: pointer;
-  color: var(--text);
-  font-weight: 600;
-  transition: border-color 0.15s;
+/* hand inside side-panel */
+#hiveHandRight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 6px;
 }
-.hive-piece-btn:hover { border-color: var(--accent); }
-.hive-piece-btn.selected { border-color: #7fc97f; background: #152a15; }
-.hive-piece-btn.white-piece { border-color: #e0d8c8; }
-.hive-piece-btn.black-piece { border-color: #555; }
 
-/* SVG hex styles */
-.hex-cell { transition: opacity 0.15s; }
-.hex-cell:hover { opacity: 0.8; }
-.hex-white { fill: #f0e8d0; stroke: #8a7a60; stroke-width: 2; }
-.hex-black { fill: #333; stroke: #777; stroke-width: 2; }
-.hex-empty { fill: rgba(255,255,255,0.04); stroke: rgba(255,255,255,0.1); stroke-width: 1; }
-.hex-legal { fill: rgba(127,201,127,0.25); stroke: #7fc97f; stroke-width: 2; cursor: pointer; }
-.hex-selected { fill: rgba(127,201,127,0.4); stroke: #7fc97f; stroke-width: 3; }
-.hex-text { font-size: 14px; font-family: sans-serif; pointer-events: none; text-anchor: middle; dominant-baseline: central; }
+/* ── Player badge in panel ────────────────────────────────────────────────── */
+.panel-player {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.panel-player.pp-active {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+.panel-hex-outer {
+  width: 66px;
+  height: 56px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-hex-inner {
+  width: 60px;
+  height: 50px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.ph-letter {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  font-family: sans-serif;
+}
+
+.ph-count {
+  position: absolute;
+  bottom: 7px;
+  left: 9px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  font-family: sans-serif;
+}
+
+/* ── SVG hex styles ───────────────────────────────────────────────────────── */
+.hex-cell              { transition: opacity 0.12s; }
+.hex-cell:hover        { opacity: 0.82; }
+.hex-player            { /* fill and stroke set inline */ }
+.hex-empty             { fill: rgba(0,0,0,0.1); stroke: rgba(0,0,0,0.25); stroke-width: 1; }
+.hex-legal             { fill: rgba(255,255,255,0.4); stroke: rgba(255,255,255,0.9); stroke-width: 2; cursor: pointer; }
+.hex-selected          { fill: rgba(255,255,255,0.6); stroke: #fff; stroke-width: 3; }
+.hex-text {
+  font-size: 18px;
+  font-family: sans-serif;
+  font-weight: 900;
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: #fff;
+}

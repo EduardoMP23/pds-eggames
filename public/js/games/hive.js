@@ -6,21 +6,33 @@
 
   const HEX_SIZE = 40;
 
-  const PIECE_EMOJI = { queen: '👑', beetle: '🪲', grasshopper: '🦗', spider: '🕷️', ant: '🐜' };
-  const PIECE_NAME  = { queen: 'Rainha', beetle: 'Besouro', grasshopper: 'Gafanhoto', spider: 'Aranha', ant: 'Formiga' };
+  let panelOpen = true;
+
+  const PIECE_LETTER = { queen: 'R', beetle: 'B', grasshopper: 'G', spider: 'A', ant: 'F' };
+  const PIECE_NAME   = { queen: 'Rainha', beetle: 'Besouro', grasshopper: 'Gafanhoto', spider: 'Aranha', ant: 'Formiga' };
+
+  // Fill color by piece type (same regardless of team)
+  const PIECE_COLOR = {
+    queen:       '#e6c200', // yellow
+    ant:         '#1a6bcc', // blue
+    grasshopper: '#1e8c2a', // green
+    spider:      '#7a4a1e', // brown
+    beetle:      '#7b2fa0', // purple
+  };
+
+  // Team accent: border + letter color
+  const TEAM_COLOR = ['#ffffff', '#000000'];
 
   // ── Camera (viewBox) state ────────────────────────────────────────────────
-  // { x, y, w, h } — the current visible rectangle in SVG-space
   let camera    = null;
-  let fitCamera = null; // auto-fit bounds updated each render
+  let fitCamera = null;
 
   // ── Drag state ────────────────────────────────────────────────────────────
-  let isDragging      = false;
-  let hasDragged      = false;      // true when mouse moved > threshold during drag
-  let dragStart       = { x: 0, y: 0 };
-  let cameraAtDrag    = null;
+  let isDragging   = false;
+  let hasDragged   = false;
+  let dragStart    = { x: 0, y: 0 };
+  let cameraAtDrag = null;
 
-  // Document-level listeners registered once so they survive SVG re-creation
   document.addEventListener('mousemove', onDocMouseMove);
   document.addEventListener('mouseup',   onDocMouseUp);
 
@@ -59,22 +71,18 @@
 
   function onWheel(e) {
     e.preventDefault();
-    const svg  = document.getElementById('hiveSvg');
+    const svg = document.getElementById('hiveSvg');
     if (!svg || !camera) return;
 
-    const rect  = svg.getBoundingClientRect();
-    // Cursor in SVG-space
+    const rect   = svg.getBoundingClientRect();
     const cx = camera.x + ((e.clientX - rect.left) / rect.width)  * camera.w;
     const cy = camera.y + ((e.clientY - rect.top)  / rect.height) * camera.h;
 
-    const factor = e.deltaY < 0 ? 0.8 : 1.25; // scroll up = zoom in
-
-    // Clamp zoom so the view never becomes ridiculous
+    const factor = e.deltaY < 0 ? 0.8 : 1.25;
     const newW = camera.w * factor;
     const newH = camera.h * factor;
     if (newW < HEX_SIZE * 3 || newW > HEX_SIZE * 120) return;
 
-    // Keep cursor point stationary
     camera = {
       x: cx - (cx - camera.x) * factor,
       y: cy - (cy - camera.y) * factor,
@@ -94,7 +102,7 @@
     cameraAtDrag = { ...camera };
     const svg = document.getElementById('hiveSvg');
     if (svg) svg.style.cursor = 'grabbing';
-    e.preventDefault(); // prevent text selection while dragging
+    e.preventDefault();
   }
 
   function onDocMouseMove(e) {
@@ -129,36 +137,79 @@
     sendAction   = actionFn;
     currentState = state;
 
+    const roomId = esc(window.location.pathname.split('/').pop());
+
     container.innerHTML = `
       <div class="hive-wrapper">
-        <div class="hive-info-bar">
-          <div class="player-label ${state.currentTurnIndex === 0 ? 'active' : ''}">
-            ⬜ ${esc(state.players[0]?.playerName)}${state.myPlayerIndex === 0 ? ' (você)' : ''}
-          </div>
-          <div class="player-label ${state.currentTurnIndex === 1 ? 'active' : ''}">
-            ⬛ ${esc(state.players[1]?.playerName)}${state.myPlayerIndex === 1 ? ' (você)' : ''}
-          </div>
-          <button class="hive-center-btn" onclick="(function(){var e=document.createEvent('Event');e.initEvent('hive:resetCamera',true,true);document.dispatchEvent(e);})()" title="Centralizar tabuleiro">⊙</button>
+        <div class="hive-top-bar">
+          <button class="hive-top-btn" id="hiveBtnBack">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+          </button>
+          <button class="hive-top-btn" id="hiveResetBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </button>
         </div>
-        <svg id="hiveSvg" class="hive-board-svg"></svg>
-        <div class="hive-hand-panel" id="hiveHands"></div>
+        <div class="hive-main">
+          <svg id="hiveSvg" class="hive-board-svg"></svg>
+          <div class="hive-right">
+            <button class="hive-toggle-btn" id="hiveToggleBtn">
+              <svg id="hiveToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </button>
+            <div class="hive-side-panel${panelOpen ? '' : ' panel-collapsed'}" id="hiveSidePanel">
+              <div id="hivePlayerPanel"></div>
+              <div class="panel-divider" id="hivePanelDivider"></div>
+              <div id="hiveHandRight"></div>
+            </div>
+          </div>
+        </div>
       </div>`;
 
-    // Listen for reset-camera event emitted by the button
-    document.addEventListener('hive:resetCamera', resetCamera, { once: true });
+    document.getElementById('hiveBtnBack').onclick = () => {
+      window.location.href = '/lobby/' + window.location.pathname.split('/').pop();
+    };
+
+    document.getElementById('hiveResetBtn').onclick = () => {
+      if (sendAction) sendAction({ type: 'reset' });
+    };
+    document.getElementById('hiveToggleBtn').addEventListener('click', () => {
+      panelOpen = !panelOpen;
+      const panel = document.getElementById('hiveSidePanel');
+      const icon  = document.getElementById('hiveToggleIcon');
+      if (panelOpen) {
+        panel.classList.remove('panel-collapsed');
+        icon.innerHTML = `<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>`;
+      } else {
+        panel.classList.add('panel-collapsed');
+        icon.innerHTML = `<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>`;
+      }
+    });
 
     renderBoard(state);
-    renderHands(state, state.isMyTurn, state.myPlayerIndex);
+    renderPlayerPanel(state);
+    renderHandRight(state);
   }
+
+  // ── Board rendering ───────────────────────────────────────────────────────
 
   function renderBoard(state) {
     const svg = document.getElementById('hiveSvg');
     if (!svg) return;
 
-    const board     = state.board || {};
+    const board      = state.board || {};
     const legalMoves = state.legalMoves || [];
 
-    // ── Collect positions to render ─────────────────────────────────────────
     const positions = new Set();
 
     Object.keys(board).forEach(k => positions.add(k));
@@ -173,7 +224,6 @@
       });
     });
 
-    // ── Legal targets filtered by selected piece ────────────────────────────
     const legalTargets = new Set();
     legalMoves.forEach(m => {
       if (m.type === 'place') {
@@ -191,7 +241,6 @@
       ? `${selectedPiece.fromQ},${selectedPiece.fromR},${selectedPiece.fromS}`
       : null;
 
-    // ── Compute pixel coords + bounding box ─────────────────────────────────
     const hexData = [...positions].map(posKey => {
       const [q, r, s] = posKey.split(',').map(Number);
       return { posKey, q, r, s, ...hexToPixel(q, r) };
@@ -204,13 +253,10 @@
       const minY = Math.min(...hexData.map(h => h.y)) - HEX_SIZE - PAD;
       const maxY = Math.max(...hexData.map(h => h.y)) + HEX_SIZE + PAD;
       fitCamera = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-
-      // Initialise camera on first render; preserve it on subsequent renders
       if (!camera) camera = { ...fitCamera };
       applyCamera(svg);
     }
 
-    // ── Build SVG content ───────────────────────────────────────────────────
     let svgContent = '';
     const isBeetleMove = selectedPiece?.type === 'board' && selectedPiece?.piece === 'beetle';
 
@@ -221,28 +267,34 @@
       const isSelected = posKey === selectedKey;
 
       let hexClass    = 'hex-empty';
+      let hexStyle    = '';
       let textContent = '';
 
-      if (isSelected) hexClass = 'hex-selected';
-      else if (isLegal) hexClass = 'hex-legal';
-      else if (isOccupied) {
-        const top = stack[stack.length - 1];
-        hexClass    = top.playerIndex === 0 ? 'hex-white' : 'hex-black';
-        textContent = PIECE_EMOJI[top.piece] || top.piece[0].toUpperCase();
-        if (stack.length > 1) textContent += `<tspan font-size="9" dy="8" dx="-6">${stack.length}</tspan>`;
+      if (isSelected) {
+        hexClass = 'hex-selected';
+      } else if (isLegal) {
+        hexClass = 'hex-legal';
+      } else if (isOccupied) {
+        const top        = stack[stack.length - 1];
+        const fill       = PIECE_COLOR[top.piece]  || '#888';
+        const teamAccent = TEAM_COLOR[top.playerIndex] || '#fff';
+        hexClass  = 'hex-player';
+        hexStyle  = `fill:${fill};stroke:${teamAccent};stroke-width:4;`;
+        const letter = PIECE_LETTER[top.piece] || top.piece[0].toUpperCase();
+        textContent  = `<tspan fill="${teamAccent}">${letter}</tspan>`;
+        if (stack.length > 1) textContent += `<tspan font-size="10" dy="8" dx="-6" fill="${teamAccent}">${stack.length}</tspan>`;
       }
 
       svgContent += `<g class="hex-cell" data-q="${q}" data-r="${r}" data-s="${s}" data-occupied="${isOccupied}" data-legal="${isLegal}">
-        <polygon class="${hexClass}" points="${hexCorners(x, y, HEX_SIZE - 2)}"/>
+        <polygon class="${hexClass}" style="${hexStyle}" points="${hexCorners(x, y, HEX_SIZE - 2)}"/>
         ${textContent ? `<text class="hex-text" x="${x}" y="${y}">${textContent}</text>` : ''}
       </g>`;
     }
 
     svg.innerHTML = svgContent;
 
-    // ── Attach SVG interaction events ───────────────────────────────────────
     svg.style.cursor = 'grab';
-    svg.addEventListener('wheel',     onWheel,      { passive: false });
+    svg.addEventListener('wheel',     onWheel,       { passive: false });
     svg.addEventListener('mousedown', onSvgMouseDown);
 
     svg.querySelectorAll('.hex-cell').forEach(g => {
@@ -251,7 +303,7 @@
       if (legal || occupied) g.style.cursor = 'pointer';
 
       g.addEventListener('click', () => {
-        if (hasDragged) return; // suppress clicks that were actually drags
+        if (hasDragged) return;
         const q = parseInt(g.dataset.q);
         const r = parseInt(g.dataset.r);
         const s = parseInt(g.dataset.s);
@@ -260,40 +312,83 @@
     });
   }
 
-  // ── Hand panel ────────────────────────────────────────────────────────────
+  // ── Hand panel (right) ───────────────────────────────────────────────────
 
-  function renderHands(state, isMyTurn, myPlayerIndex) {
-    const handsEl = document.getElementById('hiveHands');
-    if (!handsEl) return;
+  function renderHandRight(state) {
+    const el = document.getElementById('hiveHandRight');
+    if (!el) return;
 
-    state.players.forEach((p, idx) => {
-      const hand        = p.hand || {};
-      const totalPieces = Object.values(hand).reduce((s, v) => s + v, 0);
+    const myIdx = state.myPlayerIndex;
+    const me    = state.players?.[myIdx];
+    if (!me) { el.innerHTML = ''; return; }
 
-      const panel = document.createElement('div');
-      panel.className = 'hive-hand';
-      panel.innerHTML = `<h3>${esc(p.playerName)} ${idx === myPlayerIndex ? '(você)' : ''} — ${p.color === 'white' ? '⬜' : '⬛'}</h3>
-        <div class="pieces" id="hand_${idx}"></div>`;
-      handsEl.appendChild(panel);
+    const hand       = me.hand || {};
+    const teamAccent = TEAM_COLOR[myIdx] || '#fff';
+    const isMyTurn   = state.isMyTurn;
 
-      const piecesEl = panel.querySelector('.pieces');
-      if (totalPieces === 0) {
-        piecesEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem">Sem peças na mão</span>';
-        return;
-      }
+    let html = `<div class="hand-title">${esc(me.playerName)}</div><div class="hand-hexes">`;
 
-      Object.entries(hand).forEach(([piece, count]) => {
-        if (count <= 0) return;
-        const btn        = document.createElement('button');
-        const isSelected = selectedPiece?.type === 'hand' && selectedPiece?.piece === piece && idx === myPlayerIndex;
-        btn.className  = `hive-piece-btn ${p.color === 'white' ? 'white-piece' : 'black-piece'}${isSelected ? ' selected' : ''}`;
-        btn.textContent = `${PIECE_EMOJI[piece] || piece} x${count}`;
-        btn.title       = PIECE_NAME[piece] || piece;
-        btn.disabled    = !isMyTurn || idx !== myPlayerIndex;
-        btn.addEventListener('click', () => onHandPieceClick(piece, idx));
-        piecesEl.appendChild(btn);
-      });
+    let hasAny = false;
+    Object.entries(hand).forEach(([piece, count]) => {
+      if (count <= 0) return;
+      hasAny = true;
+      const letter     = PIECE_LETTER[piece] || piece[0].toUpperCase();
+      const fill       = PIECE_COLOR[piece]   || '#888';
+      const isSelected = selectedPiece?.type === 'hand' && selectedPiece?.piece === piece;
+      const disabled   = !isMyTurn;
+      const borderClr  = isSelected ? '#ffffffcc' : teamAccent;
+
+      html += `<div class="hex-btn-wrap${isSelected ? ' hx-selected' : ''}${disabled ? ' hx-disabled' : ''}"
+                    data-piece="${piece}" title="${PIECE_NAME[piece] || piece}">
+        <div class="hex-btn-outer" style="background:${borderClr}">
+          <div class="hex-btn-inner" style="background:${fill}">
+            <span class="hx-letter" style="color:${teamAccent}">${letter}</span>
+            <span class="hx-count"  style="color:${teamAccent}">${count}</span>
+          </div>
+        </div>
+      </div>`;
     });
+
+    if (!hasAny) {
+      html += `<span class="hand-empty">Sem peças</span>`;
+    }
+
+    html += `</div>`;
+    el.innerHTML = html;
+
+    if (isMyTurn) {
+      el.querySelectorAll('.hex-btn-wrap:not(.hx-disabled)').forEach(wrap => {
+        wrap.style.cursor = 'pointer';
+        wrap.addEventListener('click', () => onHandPieceClick(wrap.dataset.piece, myIdx));
+      });
+    }
+  }
+
+  // ── Player panel (right) ──────────────────────────────────────────────────
+
+  function renderPlayerPanel(state) {
+    const el = document.getElementById('hivePlayerPanel');
+    if (!el) return;
+
+    let html = '';
+    state.players.forEach((p, idx) => {
+      const teamAccent = TEAM_COLOR[idx] || '#fff';
+      const letter     = (p.playerName || '?')[0].toUpperCase();
+      const hand       = p.hand || {};
+      const total      = Object.values(hand).reduce((s, v) => s + v, 0);
+      const isActive   = state.currentTurnIndex === idx;
+
+      html += `<div class="panel-player${isActive ? ' pp-active' : ''}">
+        <div class="panel-hex-outer" style="background:${teamAccent}">
+          <div class="panel-hex-inner" style="background:#5a3e00">
+            <span class="ph-letter" style="color:${teamAccent}">${letter}</span>
+            <span class="ph-count"  style="color:${teamAccent}">${total}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+
+    el.innerHTML = html;
   }
 
   // ── Game interaction ──────────────────────────────────────────────────────
@@ -309,7 +404,7 @@
   function onHexClick(q, r, s, isOccupied, isLegal) {
     if (!currentState?.isMyTurn) return;
 
-    const posKey       = `${q},${r},${s}`;
+    const posKey        = `${q},${r},${s}`;
     const myPlayerIndex = currentState.myPlayerIndex;
 
     if (isOccupied && !selectedPiece) {

@@ -101,10 +101,14 @@
     // Revelar: flip 3D da carta
     let revealed = false;
     const card = app.querySelector('.ito-number-card');
-    document.getElementById('itoRevealBtn')?.addEventListener('click', () => {
+
+    function toggleFlip() {
       revealed = !revealed;
       card.classList.toggle('is-flipped', revealed);
-    });
+    }
+
+    document.getElementById('itoRevealBtn')?.addEventListener('click', toggleFlip);
+    card?.addEventListener('click', toggleFlip);
   }
 
   function onError() {}
