@@ -54,7 +54,7 @@
 
   /* ── Join room ─────────────────────────────────────────────── */
   function joinRoom(name) {
-    socket.emit('room:join', { roomId: roomId, playerName: name });
+    socket.emit('room:join', { roomId: roomId, playerName: name, playerId: myPlayerId });
   }
 
   joinRoom(myPlayerName);

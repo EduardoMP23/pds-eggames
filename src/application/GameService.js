@@ -73,19 +73,41 @@ class GameService {
     if (!playerInfo) return { error: 'Player not found' };
 
     const room = this._repo.getRoom(roomId);
-    if (!room || room.status !== 'playing') return { error: 'Game not in progress' };
-
-    if (action.type === 'reset' && room.hostPlayerId !== playerInfo.playerId) {
-      return { error: 'Apenas o criador da sala pode reiniciar a partida' };
-    }
+    if (!room) return { error: 'Room not found' };
 
     const Game = this._getGame(room.gameId);
+
+    // ── Reset ──────────────────────────────────────────────────────────────
+    if (action.type === 'reset') {
+      if (!['playing', 'finished'].includes(room.status)) return { error: 'Jogo não iniciado' };
+      if (room.hostPlayerId !== playerInfo.playerId) return { error: 'Apenas o criador da sala pode reiniciar a partida' };
+
+      const connected = room.players.filter(p => p.connected);
+      room.gameState = Game.initState(
+        connected.map(p => ({ playerId: p.playerId, playerName: p.playerName }))
+      );
+      room.status = 'playing';
+      room.players.forEach(p => { p.ready = false; });
+      this._bus.toRoom(roomId, 'game:reset', {});
+      this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
+      return {};
+    }
+
+    // ── Leave (back to lobby) ──────────────────────────────────────────────
+    if (action.type === 'leave') {
+      if (!['playing', 'finished'].includes(room.status)) return {};
+      room.status = 'lobby';
+      room.gameState = null;
+      room.players.forEach(p => { p.ready = false; });
+      this._bus.toRoom(roomId, 'game:back-to-lobby', {});
+      return {};
+    }
+
+    // ── Normal game action ─────────────────────────────────────────────────
+    if (room.status !== 'playing') return { error: 'Game not in progress' };
+
     const result = Game.applyAction(room.gameState, action, playerInfo.playerId);
     if (result.error) return { error: result.error };
-
-    if (action.type === 'reset') {
-      this._bus.toRoom(roomId, 'game:reset', {});
-    }
 
     if (result.events?.length > 0) {
       this._bus.toRoom(roomId, 'game:events', { events: result.events });

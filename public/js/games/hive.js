@@ -3,6 +3,7 @@
   let sendAction   = null;
   let currentState = null;
   let selectedPiece = null; // { piece, type: 'hand'|'board', fromQ, fromR, fromS }
+  let isHostPlayer  = false;
 
   const HEX_SIZE = 40;
 
@@ -27,16 +28,77 @@
   let camera    = null;
   let fitCamera = null;
 
-  // ── Drag state ────────────────────────────────────────────────────────────
+  // ── Camera pan state ──────────────────────────────────────────────────────
   let isDragging   = false;
   let hasDragged   = false;
   let dragStart    = { x: 0, y: 0 };
   let cameraAtDrag = null;
 
+  // ── Piece drag state ──────────────────────────────────────────────────────
+  let pieceDrag = null; // { type:'hand'|'board', piece, playerIdx, fromQ?, fromR?, fromS? }
+  let dragEl    = null; // ghost DOM element
+
   document.addEventListener('mousemove', onDocMouseMove);
   document.addEventListener('mouseup',   onDocMouseUp);
 
   // ── Coordinate helpers ────────────────────────────────────────────────────
+
+  function cubeRound(fq, fr, fs) {
+    let q = Math.round(fq), r = Math.round(fr), s = Math.round(fs);
+    const dq = Math.abs(q - fq), dr = Math.abs(r - fr), ds = Math.abs(s - fs);
+    if (dq > dr && dq > ds) q = -r - s;
+    else if (dr > ds)        r = -q - s;
+    else                     s = -q - r;
+    return { q, r, s };
+  }
+
+  function screenToHex(clientX, clientY) {
+    const svg = document.getElementById('hiveSvg');
+    if (!svg || !camera) return null;
+    // Use SVG's native transform to correctly account for preserveAspectRatio letterboxing
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const fq = svgPt.x / (HEX_SIZE * 1.5);
+    const fr = (svgPt.y / HEX_SIZE - Math.sqrt(3) / 2 * fq) / Math.sqrt(3);
+    return cubeRound(fq, fr, -fq - fr);
+  }
+
+  function createDragGhost(piece, playerIdx, clientX, clientY) {
+    const fill   = PIECE_COLOR[piece]     || '#888';
+    const accent = TEAM_COLOR[playerIdx]  || '#fff';
+    const letter = PIECE_LETTER[piece]    || piece[0].toUpperCase();
+    const el = document.createElement('div');
+    el.id = 'hiveDragGhost';
+    el.style.cssText = `position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);opacity:0.88;left:${clientX}px;top:${clientY}px;transition:none;`;
+    el.innerHTML = `
+      <div style="width:88px;height:76px;clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);background:${accent};display:flex;align-items:center;justify-content:center;">
+        <div style="width:80px;height:68px;clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);background:${fill};display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:1.8rem;font-weight:900;color:${accent};font-family:sans-serif;pointer-events:none;">${letter}</span>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function removeDragGhost() {
+    if (dragEl) { dragEl.remove(); dragEl = null; }
+  }
+
+  function startPieceDrag(type, piece, playerIdx, clientX, clientY, fromQ, fromR, fromS) {
+    pieceDrag = { type, piece, playerIdx, fromQ, fromR, fromS };
+    dragEl    = createDragGhost(piece, playerIdx, clientX, clientY);
+    dragStart  = { x: clientX, y: clientY };
+    hasDragged = false;
+    // Select the piece visually
+    if (type === 'hand') {
+      selectedPiece = { type: 'hand', piece };
+    } else {
+      selectedPiece = { type: 'board', fromQ, fromR, fromS, piece };
+    }
+    renderBoard(currentState);
+  }
 
   function hexToPixel(q, r) {
     return {
@@ -96,6 +158,23 @@
 
   function onSvgMouseDown(e) {
     if (e.button !== 0) return;
+
+    // Check if pressing on an occupied hex (my piece) → piece drag
+    const cell = e.target.closest?.('.hex-cell');
+    if (cell && cell.dataset.occupied === 'true' && currentState) {
+      const q = parseInt(cell.dataset.q);
+      const r = parseInt(cell.dataset.r);
+      const s = parseInt(cell.dataset.s);
+      const stack = currentState.board[`${q},${r},${s}`];
+      if (stack && stack[stack.length - 1].playerIndex === currentState.myPlayerIndex) {
+        const top = stack[stack.length - 1];
+        startPieceDrag('board', top.piece, top.playerIndex, e.clientX, e.clientY, q, r, s);
+        e.preventDefault();
+        return;
+      }
+    }
+
+    // Otherwise pan camera
     isDragging   = true;
     hasDragged   = false;
     dragStart    = { x: e.clientX, y: e.clientY };
@@ -106,6 +185,15 @@
   }
 
   function onDocMouseMove(e) {
+    // Move ghost if piece dragging
+    if (pieceDrag && dragEl) {
+      const dist = Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y);
+      if (dist > 4) hasDragged = true;
+      dragEl.style.left = e.clientX + 'px';
+      dragEl.style.top  = e.clientY + 'px';
+      return;
+    }
+
     if (!isDragging || !camera) return;
     const dist = Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y);
     if (dist > 4) hasDragged = true;
@@ -120,7 +208,26 @@
     applyCamera(svg);
   }
 
-  function onDocMouseUp() {
+  function onDocMouseUp(e) {
+    // Drop piece
+    if (pieceDrag) {
+      removeDragGhost();
+      if (hasDragged) {
+        const hex = screenToHex(e.clientX, e.clientY);
+        if (hex && sendAction) {
+          if (pieceDrag.type === 'hand') {
+            sendAction({ type: 'place', piece: pieceDrag.piece, q: hex.q, r: hex.r, s: hex.s });
+          } else {
+            sendAction({ type: 'move', fromQ: pieceDrag.fromQ, fromR: pieceDrag.fromR, fromS: pieceDrag.fromS, toQ: hex.q, toR: hex.r, toS: hex.s });
+          }
+          selectedPiece = null;
+        }
+      }
+      pieceDrag = null;
+      hasDragged = false;
+      return;
+    }
+
     if (!isDragging) return;
     isDragging = false;
     const svg = document.getElementById('hiveSvg');
@@ -129,8 +236,9 @@
 
   // ── Init / Render ─────────────────────────────────────────────────────────
 
-  function init(el) {
-    container = el;
+  function init(el, playerId, playerName, isHost) {
+    container    = el;
+    isHostPlayer = !!isHost;
   }
 
   function render(state, actionFn) {
@@ -149,13 +257,13 @@
               <polyline points="12 19 5 12 12 5"/>
             </svg>
           </button>
-          <button class="hive-top-btn" id="hiveResetBtn">
+          ${isHostPlayer ? `<button class="hive-top-btn" id="hiveResetBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                  stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
               <path d="M3 3v5h5"/>
             </svg>
-          </button>
+          </button>` : ''}
         </div>
         <div class="hive-main">
           <svg id="hiveSvg" class="hive-board-svg"></svg>
@@ -168,8 +276,6 @@
               </svg>
             </button>
             <div class="hive-side-panel${panelOpen ? '' : ' panel-collapsed'}" id="hiveSidePanel">
-              <div id="hivePlayerPanel"></div>
-              <div class="panel-divider" id="hivePanelDivider"></div>
               <div id="hiveHandRight"></div>
             </div>
           </div>
@@ -177,12 +283,34 @@
       </div>`;
 
     document.getElementById('hiveBtnBack').onclick = () => {
-      window.location.href = '/lobby/' + window.location.pathname.split('/').pop();
+      if (sendAction) sendAction({ type: 'leave' });
     };
 
-    document.getElementById('hiveResetBtn').onclick = () => {
-      if (sendAction) sendAction({ type: 'reset' });
-    };
+    if (isHostPlayer) {
+      const resetBtn = document.getElementById('hiveResetBtn');
+      let resetTimer = null;
+
+      const startReset = () => {
+        resetBtn.classList.add('holding');
+        resetTimer = setTimeout(() => {
+          resetTimer = null;
+          resetBtn.classList.remove('holding');
+          if (sendAction) sendAction({ type: 'reset' });
+        }, 2000);
+      };
+
+      const cancelReset = () => {
+        if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
+        resetBtn.classList.remove('holding');
+      };
+
+      resetBtn.addEventListener('mousedown',   startReset);
+      resetBtn.addEventListener('mouseup',     cancelReset);
+      resetBtn.addEventListener('mouseleave',  cancelReset);
+      resetBtn.addEventListener('touchstart',  e => { e.preventDefault(); startReset(); });
+      resetBtn.addEventListener('touchend',    cancelReset);
+      resetBtn.addEventListener('touchcancel', cancelReset);
+    }
     document.getElementById('hiveToggleBtn').addEventListener('click', () => {
       panelOpen = !panelOpen;
       const panel = document.getElementById('hiveSidePanel');
@@ -197,7 +325,6 @@
     });
 
     renderBoard(state);
-    renderPlayerPanel(state);
     renderHandRight(state);
   }
 
@@ -212,11 +339,15 @@
 
     const positions = new Set();
 
+    // Always show a grid of hexes around the origin so the board is never empty
+    for (let q = -3; q <= 3; q++) {
+      for (let r = -3; r <= 3; r++) {
+        const s = -q - r;
+        if (Math.abs(s) <= 3) positions.add(`${q},${r},${s}`);
+      }
+    }
+
     Object.keys(board).forEach(k => positions.add(k));
-    legalMoves.forEach(m => {
-      if (m.type === 'place')     positions.add(`${m.q},${m.r},${m.s}`);
-      else if (m.type === 'move') positions.add(`${m.toQ},${m.toR},${m.toS}`);
-    });
     Object.keys(board).forEach(k => {
       const [q, r, s] = k.split(',').map(Number);
       [[-1,1,0],[1,-1,0],[1,0,-1],[-1,0,1],[0,1,-1],[0,-1,1]].forEach(([dq,dr,ds]) => {
@@ -263,7 +394,7 @@
     for (const { posKey, q, r, s, x, y } of hexData) {
       const stack      = board[posKey];
       const isOccupied = !!(stack && stack.length > 0);
-      const isLegal    = legalTargets.has(posKey) && (!isOccupied || isBeetleMove) && !!currentState?.isMyTurn;
+      const isLegal    = legalTargets.has(posKey) && (!isOccupied || isBeetleMove);
       const isSelected = posKey === selectedKey;
 
       let hexClass    = 'hex-empty';
@@ -281,8 +412,8 @@
         hexClass  = 'hex-player';
         hexStyle  = `fill:${fill};stroke:${teamAccent};stroke-width:4;`;
         const letter = PIECE_LETTER[top.piece] || top.piece[0].toUpperCase();
-        textContent  = `<tspan fill="${teamAccent}">${letter}</tspan>`;
-        if (stack.length > 1) textContent += `<tspan font-size="10" dy="8" dx="-6" fill="${teamAccent}">${stack.length}</tspan>`;
+        textContent  = `<tspan fill="${teamAccent}" x="${x}">${letter}</tspan>`;
+        if (stack.length > 1) textContent += `<tspan fill="${teamAccent}" x="${x}" dy="14" font-size="11">${stack.length}</tspan>`;
       }
 
       svgContent += `<g class="hex-cell" data-q="${q}" data-r="${r}" data-s="${s}" data-occupied="${isOccupied}" data-legal="${isLegal}">
@@ -307,7 +438,7 @@
         const q = parseInt(g.dataset.q);
         const r = parseInt(g.dataset.r);
         const s = parseInt(g.dataset.s);
-        onHexClick(q, r, s, occupied, legal);
+        onHexClick(q, r, s, occupied);
       });
     });
   }
@@ -324,9 +455,7 @@
 
     const hand       = me.hand || {};
     const teamAccent = TEAM_COLOR[myIdx] || '#fff';
-    const isMyTurn   = state.isMyTurn;
-
-    let html = `<div class="hand-title">${esc(me.playerName)}</div><div class="hand-hexes">`;
+    let html = `<div class="hand-hexes">`;
 
     let hasAny = false;
     Object.entries(hand).forEach(([piece, count]) => {
@@ -335,10 +464,9 @@
       const letter     = PIECE_LETTER[piece] || piece[0].toUpperCase();
       const fill       = PIECE_COLOR[piece]   || '#888';
       const isSelected = selectedPiece?.type === 'hand' && selectedPiece?.piece === piece;
-      const disabled   = !isMyTurn;
       const borderClr  = isSelected ? '#ffffffcc' : teamAccent;
 
-      html += `<div class="hex-btn-wrap${isSelected ? ' hx-selected' : ''}${disabled ? ' hx-disabled' : ''}"
+      html += `<div class="hex-btn-wrap${isSelected ? ' hx-selected' : ''}"
                     data-piece="${piece}" title="${PIECE_NAME[piece] || piece}">
         <div class="hex-btn-outer" style="background:${borderClr}">
           <div class="hex-btn-inner" style="background:${fill}">
@@ -356,12 +484,17 @@
     html += `</div>`;
     el.innerHTML = html;
 
-    if (isMyTurn) {
-      el.querySelectorAll('.hex-btn-wrap:not(.hx-disabled)').forEach(wrap => {
-        wrap.style.cursor = 'pointer';
-        wrap.addEventListener('click', () => onHandPieceClick(wrap.dataset.piece, myIdx));
+    el.querySelectorAll('.hex-btn-wrap').forEach(wrap => {
+      wrap.style.cursor = 'grab';
+      wrap.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        startPieceDrag('hand', wrap.dataset.piece, myIdx, e.clientX, e.clientY);
       });
-    }
+      wrap.addEventListener('click', () => {
+        if (!hasDragged) onHandPieceClick(wrap.dataset.piece, myIdx);
+      });
+    });
   }
 
   // ── Player panel (right) ──────────────────────────────────────────────────
@@ -394,19 +527,20 @@
   // ── Game interaction ──────────────────────────────────────────────────────
 
   function onHandPieceClick(piece, playerIdx) {
-    if (!currentState?.isMyTurn || playerIdx !== currentState.myPlayerIndex) return;
+    if (playerIdx !== currentState.myPlayerIndex) return;
     selectedPiece = (selectedPiece?.type === 'hand' && selectedPiece.piece === piece)
       ? null
       : { type: 'hand', piece };
     render(currentState, sendAction);
   }
 
-  function onHexClick(q, r, s, isOccupied, isLegal) {
-    if (!currentState?.isMyTurn) return;
+  function onHexClick(q, r, s, isOccupied) {
+    if (!currentState) return;
 
     const posKey        = `${q},${r},${s}`;
     const myPlayerIndex = currentState.myPlayerIndex;
 
+    // Select my piece on board
     if (isOccupied && !selectedPiece) {
       const stack = currentState.board[posKey];
       if (stack && stack[stack.length - 1].playerIndex === myPlayerIndex) {
@@ -416,7 +550,8 @@
       return;
     }
 
-    if (isLegal && selectedPiece) {
+    // Drop selected piece anywhere
+    if (selectedPiece) {
       if (selectedPiece.type === 'hand') {
         sendAction({ type: 'place', piece: selectedPiece.piece, q, r, s });
       } else if (selectedPiece.type === 'board') {
@@ -424,11 +559,6 @@
       }
       selectedPiece = null;
       return;
-    }
-
-    if (selectedPiece) {
-      selectedPiece = null;
-      render(currentState, sendAction);
     }
   }
 

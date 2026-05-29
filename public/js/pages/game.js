@@ -48,6 +48,10 @@
     showGameOver({ winnerName, reason, teamWin, roomId });
   });
 
+  socket.on('game:back-to-lobby', () => {
+    window.location.href = '/lobby/' + roomId;
+  });
+
   function loadGame(gameId) {
     const meta = GAME_META[gameId] || GAME_META.hive;
     const v = Date.now();

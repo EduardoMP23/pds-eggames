@@ -60,9 +60,21 @@ class InMemoryRoomRepository {
     }
 
     if (existing) {
+      // Remove old socket mapping so a stale disconnect doesn't trigger host reassignment
+      if (existing.socketId && existing.socketId !== socketId) {
+        this._players.delete(existing.socketId);
+      }
+
       existing.socketId  = socketId;
       existing.connected = true;
       this._players.set(socketId, { roomId, playerId: existing.playerId, playerName });
+
+      // Cancel pending host reassignment if the host reconnected in time
+      if (room._hostReassignTimer && existing.playerId === room.hostPlayerId) {
+        clearTimeout(room._hostReassignTimer);
+        room._hostReassignTimer = null;
+      }
+
       return { room, playerId: existing.playerId, reconnected: true };
     }
 
@@ -103,14 +115,23 @@ class InMemoryRoomRepository {
       }, 30_000);
     }
 
+    // If the disconnecting player is the host, schedule reassignment after 10s
+    if (room.hostPlayerId === playerId) {
+      if (room._hostReassignTimer) clearTimeout(room._hostReassignTimer);
+      room._hostReassignTimer = setTimeout(() => {
+        room._hostReassignTimer = null;
+        const currentHost = room.players.find(p => p.playerId === room.hostPlayerId);
+        if (currentHost?.connected) return;
+        const next = room.players.find(p => p.connected);
+        if (next) room.hostPlayerId = next.playerId;
+      }, 10_000);
+    }
+
     return { roomId, playerId, removed: false, room };
   }
 
   reassignHost(roomId) {
-    const room = this._rooms.get(roomId);
-    if (!room) return;
-    const connected = room.players.find(p => p.connected);
-    if (connected) room.hostPlayerId = connected.playerId;
+    // No-op: host reassignment is now handled with a delay in removePlayer.
   }
 
   listPublicRooms() {
