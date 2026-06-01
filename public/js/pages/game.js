@@ -16,6 +16,12 @@
 
   socket.emit('room:join', { roomId, playerName: myPlayerName || 'Jogador', playerId: myPlayerId });
 
+  // On reconnect (Safari drops WS aggressively), re-register so the server updates
+  // p.socketId and sends the current game state to the new socket.
+  socket.io.on('reconnect', () => {
+    socket.emit('room:join', { roomId, playerName: myPlayerName || 'Jogador', playerId: myPlayerId });
+  });
+
   socket.on('room:joined', data => {
     if (data.status !== 'playing') window.location.href = `/lobby/${roomId}`;
     if (data.playerId) sessionStorage.setItem('playerId', data.playerId);
@@ -24,7 +30,9 @@
 
   socket.on('game:start', ({ gameId }) => {
     if (gameModule?.onReset) gameModule.onReset();
-    loadGame(gameId);
+    // On reconnect the module is already loaded — skip re-downloading the script.
+    // The game:state-update that follows will call render() with the current state.
+    if (!gameModule) loadGame(gameId);
   });
 
   socket.on('game:reset', () => {

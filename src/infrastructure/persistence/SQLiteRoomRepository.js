@@ -276,8 +276,10 @@ class SQLiteRoomRepository {
   reassignHost(roomId) {
     const room = this._rooms.get(roomId);
     if (!room) return;
-    const connected = room.players.find(p => p.connected);
-    if (connected) room.hostPlayerId = connected.playerId;
+    const currentHost = room.players.find(p => p.playerId === room.hostPlayerId);
+    if (currentHost && currentHost.connected) return;
+    const next = room.players.find(p => p.connected && p.playerId !== room.hostPlayerId);
+    if (next) room.hostPlayerId = next.playerId;
   }
 
   listPublicRooms() {

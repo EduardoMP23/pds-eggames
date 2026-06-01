@@ -40,12 +40,12 @@ class RoomService {
    * @returns {{ roomId, playerId, removed, room }|null}
    */
   removePlayer(socketId) {
-    const result = this._repo.removePlayer(socketId);
-    if (result) {
-      const room = this._repo.getRoom(result.roomId);
-      if (room && room.status === 'lobby') this._repo.reassignHost(result.roomId);
-    }
-    return result;
+    return this._repo.removePlayer(socketId);
+  }
+
+  /** Reassign host to the next connected player. Called by SocketHandler after the grace-period timer fires. */
+  reassignHost(roomId) {
+    this._repo.reassignHost(roomId);
   }
 
   /** @returns {Object[]} */

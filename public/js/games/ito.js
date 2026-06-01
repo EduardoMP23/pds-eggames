@@ -94,7 +94,7 @@
 
       resetBtn.addEventListener('pointerdown', startHold);
       resetBtn.addEventListener('pointerup', cancelHold);
-      resetBtn.addEventListener('pointerleave', cancelHold);
+      resetBtn.addEventListener('pointercancel', cancelHold);
       resetBtn.addEventListener('contextmenu', e => e.preventDefault());
     }
 

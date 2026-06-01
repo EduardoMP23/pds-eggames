@@ -211,6 +211,7 @@
 
       socket.on('lobby:player-joined', data => {
         setPlayers(data.players || []);
+        if (data.newHostId) setHostId(data.newHostId);
         const np = (data.players || []).find(p => p.playerId === data.newPlayerId);
         if (np) setMessages(m => [...m, { kind: 'system', text: `${np.playerName} entrou na sala.` }]);
       });
@@ -222,6 +223,14 @@
           if (data.newHostId === myIdRef.current) setIsHost(true);
         }
         setMessages(m => [...m, { kind: 'system', text: 'Um jogador saiu da sala.' }]);
+      });
+
+      socket.on('lobby:host-changed', data => {
+        setPlayers(data.players || []);
+        if (data.newHostId) {
+          setHostId(data.newHostId);
+          if (data.newHostId === myIdRef.current) setIsHost(true);
+        }
       });
 
       socket.on('game:start', data => {

@@ -17,10 +17,11 @@ const DEFAULT_GAME_ID = 'hive';
  */
 class SocketHandler {
   constructor(io, roomService, gameService, eventBus) {
-    this._io    = io;
-    this._rooms = roomService;
-    this._game  = gameService;
-    this._bus   = eventBus;
+    this._io         = io;
+    this._rooms      = roomService;
+    this._game       = gameService;
+    this._bus        = eventBus;
+    this._hostTimers = new Map(); // key: `${roomId}:${playerId}`
   }
 
   register() {
@@ -51,7 +52,14 @@ class SocketHandler {
         const result = this._rooms.joinRoom(socket.id, playerName, roomId, avatar, color, existingPlayerId);
         if (result.error) return socket.emit('room:join-error', { message: result.error });
 
-        const { room, playerId } = result;
+        const { room, playerId, reconnected } = result;
+        if (reconnected) {
+          const timerKey = `${roomId}:${playerId}`;
+          if (this._hostTimers.has(timerKey)) {
+            clearTimeout(this._hostTimers.get(timerKey));
+            this._hostTimers.delete(timerKey);
+          }
+        }
         socket.join(roomId);
 
         const playerList = this._playerList(room);
@@ -72,7 +80,12 @@ class SocketHandler {
           this._game.reconnect(room, playerId, socket.id);
         }
 
-        socket.to(roomId).emit('lobby:player-joined', { newPlayerId: playerId, playerName, players: playerList });
+        socket.to(roomId).emit('lobby:player-joined', {
+          newPlayerId: playerId,
+          playerName,
+          players:     playerList,
+          newHostId:   room.hostPlayerId,
+        });
       });
 
       // ── Ready toggle ──────────────────────────────────────────────────────
@@ -130,11 +143,36 @@ class SocketHandler {
         const updatedRoom = this._rooms.getRoom(roomId);
         if (!updatedRoom) return;
 
+        // Broadcast immediately — if host, newHostId still points to them (DC + HOST badge during grace period)
         this._bus.toRoom(roomId, 'lobby:player-left', {
           playerId,
           players:   this._playerList(updatedRoom),
           newHostId: updatedRoom.hostPlayerId,
         });
+
+        const isHostLeaving =
+          updatedRoom.status === 'lobby' &&
+          updatedRoom.hostPlayerId === playerId;
+
+        if (isHostLeaving) {
+          const timerKey = `${roomId}:${playerId}`;
+          if (this._hostTimers.has(timerKey)) clearTimeout(this._hostTimers.get(timerKey));
+          this._hostTimers.set(timerKey, setTimeout(() => {
+            this._hostTimers.delete(timerKey);
+            const room = this._rooms.getRoom(roomId);
+            if (!room || room.status !== 'lobby') return;
+            const currentHost = room.players.find(p => p.playerId === playerId);
+            if (currentHost?.connected) return;
+            this._rooms.reassignHost(roomId);
+            const refreshed = this._rooms.getRoom(roomId);
+            if (refreshed) {
+              this._bus.toRoom(roomId, 'lobby:host-changed', {
+                newHostId: refreshed.hostPlayerId,
+                players:   this._playerList(refreshed),
+              });
+            }
+          }, 8_000));
+        }
       });
     });
   }

@@ -106,6 +106,15 @@
     updateWaitingMsg(data.players, roomData && roomData.minPlayers);
   });
 
+  socket.on('lobby:host-changed', function (data) {
+    renderPlayers(data.players, data.newHostId);
+    if (data.newHostId === myPlayerId) {
+      isHost = true;
+      updateHostControls();
+    }
+    updateWaitingMsg(data.players, roomData && roomData.minPlayers);
+  });
+
   socket.on('game:start', function (data) {
     window.location.href = '/game/' + (data.roomId || roomId);
   });
