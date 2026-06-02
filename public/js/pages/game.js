@@ -4,9 +4,10 @@
   const myPlayerName = sessionStorage.getItem('playerName');
 
   const GAME_META = {
-    hive: { title: '🐝 Hive', css: '/css/games/hive.css', js: '/js/games/hive.js' },
-    coup: { title: '👑 Coup', css: '/css/games/coup.css', js: '/js/games/coup.js' },
-    ito:  { title: '🎋 ITO',  css: '/css/games/ito.css',  js: '/js/games/ito.js'  },
+    hive:  { title: '🐝 Hive',  css: '/css/games/hive.css',  js: '/js/games/hive.js'  },
+    coup:  { title: '👑 Coup',  css: '/css/games/coup.css',  js: '/js/games/coup.js'  },
+    ito:   { title: '🎋 ITO',   css: '/css/games/ito.css',   js: '/js/games/ito.js'   },
+    poker: { title: '🃏 Poker', css: '/css/games/poker.css', js: '/js/games/poker.js' },
   };
 
   let gameModule = null;

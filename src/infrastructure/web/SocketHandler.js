@@ -1,13 +1,15 @@
 'use strict';
 
-const HiveGame = require('../../domain/hive/HiveGame');
-const CoupGame = require('../../domain/coup/CoupGame');
-const ItoGame  = require('../../domain/ito/ItoGame');
+const HiveGame  = require('../../domain/hive/HiveGame');
+const CoupGame  = require('../../domain/coup/CoupGame');
+const ItoGame   = require('../../domain/ito/ItoGame');
+const PokerGame = require('../../domain/poker/PokerGame');
 
 const GAME_CONFIGS = {
-  hive: { minPlayers: HiveGame.MIN_PLAYERS, maxPlayers: HiveGame.MAX_PLAYERS },
-  coup: { minPlayers: CoupGame.MIN_PLAYERS, maxPlayers: CoupGame.MAX_PLAYERS },
-  ito:  { minPlayers: ItoGame.MIN_PLAYERS,  maxPlayers: ItoGame.MAX_PLAYERS  },
+  hive:  { minPlayers: HiveGame.MIN_PLAYERS,  maxPlayers: HiveGame.MAX_PLAYERS  },
+  coup:  { minPlayers: CoupGame.MIN_PLAYERS,  maxPlayers: CoupGame.MAX_PLAYERS  },
+  ito:   { minPlayers: ItoGame.MIN_PLAYERS,   maxPlayers: ItoGame.MAX_PLAYERS   },
+  poker: { minPlayers: PokerGame.MIN_PLAYERS, maxPlayers: PokerGame.MAX_PLAYERS },
 };
 
 const DEFAULT_GAME_ID = 'hive';
