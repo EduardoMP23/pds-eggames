@@ -21,24 +21,32 @@
   position: fixed;
   inset: 0;
   background: linear-gradient(135deg, #ffffff 0%, #ff5a5a 50%, #111111 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
 }
 
-/* ── Stage fixo 1218 × 784 (escala via JS) ───────────────────────────────────── */
+/* ── Stage preenche o viewport inteiro (dimensões controladas pelo JS) ───────── */
 #pk-stage {
-  position: relative;
-  width: 1218px;
-  height: 784px;
-  transform-origin: center;
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: top left;
   font-family: 'Nunito', sans-serif;
 }
 
-/* ── Botões de navegação (topo esquerdo) ─────────────────────────────────────── */
-.pk-topbtn {
+/* ── Área de jogo fixa 1218×784, centralizada dentro do stage ────────────────── */
+#pk-inner {
   position: absolute;
+  width: 1218px;
+  height: 784px;
+}
+
+/* ── Botões de navegação (topo esquerdo) ─────────────────────────────────────── */
+#pk-nav {
+  position: absolute;
+  top: 10px; left: 10px;
+  display: flex;
+  gap: 10px;
+}
+.pk-topbtn {
   background: none;
   border: none;
   padding: 0;
@@ -48,9 +56,6 @@
 }
 .pk-topbtn img { height: 68px; width: auto; display: block; }
 .pk-topbtn:active { transform: scale(.93); }
-
-#pk-back-btn    { left: 18px;  top: 18px; }
-#pk-restart-btn { left: 104px; top: 18px; }
 
 /* ── Mesa ────────────────────────────────────────────────────────────────────── */
 .pk-table {
@@ -85,15 +90,7 @@
   white-space: nowrap;
 }
 
-/* ── Fase / vencedor ─────────────────────────────────────────────────────────── */
-#pk-phase-label {
-  position: absolute;
-  left: 609px; top: 222px;
-  transform: translateX(-50%);
-  color: rgba(255,255,255,.55);
-  font-size: 20px; letter-spacing: 3px;
-  text-transform: uppercase; font-weight: 700;
-}
+/* ── Vencedor ────────────────────────────────────────────────────────────────── */
 #pk-winner-label {
   position: absolute;
   left: 609px; top: 548px;
@@ -210,16 +207,6 @@
   transform: translateY(-50%); pointer-events: none;
 }
 
-.pk-dealer-dot {
-  position: absolute; top: -6px; right: -6px;
-  width: 20px; height: 20px;
-  background: #fff; border-radius: 50%;
-  border: 2px solid #333;
-  font-size: 9px; font-weight: 800; color: #333;
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1; font-family: sans-serif;
-}
-
 /* ── Info do jogador atual (canto inf. esquerdo) ─────────────────────────────── */
 #pk-my-info {
   position: absolute;
@@ -232,15 +219,6 @@
   padding: 8px 18px;
   box-shadow: 0 4px 10px rgba(0,0,0,.3);
   white-space: nowrap;
-}
-#pk-my-bet-label {
-  margin-top: 5px;
-  display: inline-block;
-  background: #ededed; border-radius: 24px;
-  color: #2a2a2a; font-size: 22px; font-weight: 700;
-  padding: 4px 18px;
-  box-shadow: 0 3px 7px rgba(0,0,0,.15);
-  min-height: 30px;
 }
 
 /* ── Botão Pass ──────────────────────────────────────────────────────────────── */

@@ -2,8 +2,6 @@
 
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 9;
-const SMALL_BLIND = 10;
-const BIG_BLIND   = 20;
 const START_CHIPS = 1000;
 
 const SUITS = ['s', 'h', 'd', 'c'];
@@ -257,15 +255,10 @@ function dealHand(state) {
   const dealerPos = nonElim.findIndex(({ i }) => i === state.dealerIndex);
   const dp = dealerPos === -1 ? 0 : dealerPos;
 
-  // Heads-up: dealer = SB acts first preflop
-  const sbPos  = count === 2 ? dp : (dp + 1) % count;
-  const bbPos  = count === 2 ? (dp + 1) % count : (dp + 2) % count;
-  const utgPos = count === 2 ? sbPos : (dp + 3) % count;
+  // Primeiro a agir é o jogador à esquerda do dealer
+  const firstPos = (dp + 1) % count;
 
-  postBlind(state, nonElim[sbPos].i, SMALL_BLIND);
-  postBlind(state, nonElim[bbPos].i, BIG_BLIND);
-
-  state.currentPlayerIndex = nonElim[utgPos].i;
+  state.currentPlayerIndex = nonElim[firstPos].i;
   state.phase = 'preflop';
 }
 

@@ -25,11 +25,16 @@
 
     _fitFn = function fit() {
       const stage = qs('#pk-stage');
-      if (!stage) return;
+      const inner = qs('#pk-inner');
+      if (!stage || !inner) return;
       const w = window.innerWidth;
       const h = window.innerHeight;
       const s = Math.min(w / 1218, h / 784);
+      stage.style.width  = (w / s) + 'px';
+      stage.style.height = (h / s) + 'px';
       stage.style.transform = `scale(${s})`;
+      inner.style.left = ((w / s - 1218) / 2) + 'px';
+      inner.style.top  = ((h / s - 784)  / 2) + 'px';
     };
     window.addEventListener('resize', _fitFn);
     _fitFn();
@@ -54,13 +59,17 @@
       <div id="pk-bg">
         <div id="pk-stage">
 
-          <!-- Navegação -->
-          <button class="pk-topbtn" id="pk-back-btn" title="Voltar">
-            <img src="/assets/poker/Voltar.png" alt="Voltar">
-          </button>
-          <button class="pk-topbtn" id="pk-restart-btn" title="Reiniciar" style="display:none">
-            <img src="/assets/poker/Reiniciar.png" alt="Reiniciar">
-          </button>
+          <!-- Navegação (colada no canto do viewport) -->
+          <div id="pk-nav">
+            <button class="pk-topbtn" id="pk-back-btn" title="Voltar">
+              <img src="/assets/poker/Voltar.png" alt="Voltar">
+            </button>
+            <button class="pk-topbtn" id="pk-restart-btn" title="Reiniciar" style="display:none">
+              <img src="/assets/poker/Reiniciar.png" alt="Reiniciar">
+            </button>
+          </div>
+
+          <div id="pk-inner">
 
           <!-- Mesa -->
           <div class="pk-table"><div class="pk-felt"></div></div>
@@ -68,8 +77,7 @@
           <!-- Pote -->
           <div id="pk-pot">R$ 0</div>
 
-          <!-- Fase / vencedor -->
-          <div id="pk-phase-label"></div>
+          <!-- Vencedor -->
           <div id="pk-winner-label" style="display:none"></div>
 
           <!-- Cartas comunitárias -->
@@ -84,10 +92,9 @@
             <div class="pk-card back" id="pk-hole-1"></div>
           </div>
 
-          <!-- Info do jogador (fichas + aposta atual) -->
+          <!-- Info do jogador (fichas) -->
           <div id="pk-my-info">
             <div id="pk-my-chips">R$ 0</div>
-            <div id="pk-my-bet-label"></div>
           </div>
 
           <!-- Botão Pass / Check / Fold -->
@@ -112,6 +119,7 @@
           <!-- Próxima mão -->
           <button id="pk-next-hand-btn" style="display:none">Próxima Mão</button>
 
+          </div>
         </div>
       </div>
     `;
@@ -145,7 +153,7 @@
 
   // ── Seat widget ───────────────────────────────────────────────────────────
 
-  function seatHTML(p, isDealer, isCurrentTurn) {
+  function seatHTML(p, isCurrentTurn) {
     let betText = '';
     if (p.eliminated)  betText = 'Eliminado';
     else if (p.folded) betText = 'Fold';
@@ -160,7 +168,7 @@
     return `
       <div class="pk-seat-inner ${stateCls}">
         <div class="pk-seat-sprite">
-          ${isDealer ? '<div class="pk-dealer-dot">D</div>' : ''}
+
           <img src="/assets/poker/divers%C3%A1rio.png" class="pk-sprite-bg" alt="">
           <span class="pk-sprite-name">${escHtml(p.playerName)}</span>
           <span class="pk-sprite-chips">R$ ${p.chips}</span>
@@ -193,11 +201,9 @@
       if (!seatEl) continue;
       const opp    = opponents[i];
       if (opp) {
-        const pidx     = state.players.findIndex(x => x.playerId === opp.playerId);
-        const isDealer = state.dealerIndex === pidx;
         const isTurn   = state.players[state.currentPlayerIndex]?.playerId === opp.playerId;
         seatEl.className = `pk-seat pk-s-${SEAT_KEYS[i]}`;
-        seatEl.innerHTML = seatHTML(opp, isDealer, isTurn);
+        seatEl.innerHTML = seatHTML(opp, isTurn);
       } else {
         seatEl.className = `pk-seat pk-s-${SEAT_KEYS[i]}`;
         seatEl.innerHTML = '';
@@ -211,13 +217,6 @@
 
     // ── Pote ──────────────────────────────────────────────────────────────
     qs('#pk-pot').textContent = `R$ ${state.pot}`;
-
-    // ── Fase ──────────────────────────────────────────────────────────────
-    const phaseNames = {
-      preflop:'Pré-Flop', flop:'Flop',
-      turn:'Turn', river:'River', showdown:'Showdown',
-    };
-    qs('#pk-phase-label').textContent = phaseNames[state.phase] || '';
 
     // ── Vencedor ──────────────────────────────────────────────────────────
     const wl = qs('#pk-winner-label');
@@ -236,12 +235,11 @@
     }
 
     // ── Minha info ─────────────────────────────────────────────────────────
-    qs('#pk-my-chips').textContent     = `R$ ${me?.chips ?? 0}`;
-    qs('#pk-my-bet-label').textContent = me?.bet > 0 ? `+R$ ${me.bet}` : '';
+    qs('#pk-my-chips').textContent = `R$ ${me?.chips ?? 0}`;
 
     // ── Display de aposta ─────────────────────────────────────────────────
-    qs('#pk-pot-label').textContent   = `R$ ${state.currentBet}`;
-    qs('#pk-raise-label').textContent = `R$ ${_raiseAmount}`;
+    qs('#pk-pot-label').textContent   = `R$ ${_raiseAmount}`;
+    qs('#pk-raise-label').textContent = `R$ ${me?.bet ?? 0}`;
 
     // ── Botões de ação ─────────────────────────────────────────────────────
     const passBtn    = qs('#pk-pass-btn');
@@ -322,7 +320,7 @@
   }
 
   function updateRaise() {
-    const el = qs('#pk-raise-label');
+    const el = qs('#pk-pot-label');
     if (el) el.textContent = `R$ ${_raiseAmount}`;
     const btn = qs('#pk-confirm-btn');
     if (btn) btn.disabled = _raiseAmount <= 0;
