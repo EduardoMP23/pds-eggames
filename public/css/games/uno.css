@@ -1,0 +1,311 @@
+/* ── Uno Game Layout ──────────────────────────────────────────────── */
+
+.uno-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+/* ── Top buttons ──────────────────────────────────────────────────── */
+
+.uno-btn-back,
+.uno-btn-reset {
+  position: absolute;
+  top: 12px;
+  width: 52px;
+  height: 52px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 100;
+}
+.uno-btn-back   { left: 12px; }
+.uno-btn-reset  { left: 72px; width: 45px; }
+.uno-btn-back img,
+.uno-btn-reset img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Mobile portrait: 10px after the 12px border */
+@media (max-width: 767px) {
+  .uno-btn-back  { left: 22px; }
+  .uno-btn-reset { left: 82px; }
+}
+
+/* ── Fundo (painel do jogo) ───────────────────────────────────────── */
+
+.uno-fundo {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #919191;
+  border: 12px solid #262626;
+  border-radius: 0;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+@media (min-width: 768px) {
+  .uno-fundo {
+    width: 720px;
+    height: 420px;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+}
+
+/* Aviso de landscape em mobile */
+@media screen and (pointer: coarse) and (orientation: landscape) and (max-width: 767px) {
+  .uno-root::before {
+    content: 'Gire o dispositivo para jogar';
+    position: fixed;
+    inset: 0;
+    background: #000;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    z-index: 9999;
+  }
+}
+
+/* ── Opponent badges ──────────────────────────────────────────────── */
+
+.uno-opponents {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  pointer-events: none;
+}
+
+.uno-opponent-badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.uno-badge-wrap {
+  position: relative;
+  width: 86px;
+  height: 88px;
+}
+
+.uno-badge-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.uno-badge-name {
+  position: absolute;
+  top: 25%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  max-width: 74px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  pointer-events: none;
+}
+
+.uno-badge-count {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #111;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ── Table area ───────────────────────────────────────────────────── */
+
+.uno-table-area {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+/* Zone highlight when a card is dragged over */
+.uno-table-area.zone-hot {
+  outline: 3px dashed rgba(255,255,255,.7);
+  outline-offset: 8px;
+  border-radius: 8px;
+}
+
+/* ── Cards (base) ─────────────────────────────────────────────────── */
+
+.uno-card {
+  position: absolute;
+  cursor: grab;
+  transform-origin: 50% 100%;
+}
+
+/* Inner div = the visual card surface (for lift animation) */
+.uno-card .inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 6px 14px rgba(0,0,0,.45);
+  transition: transform .25s cubic-bezier(.22,.9,.3,1),
+              box-shadow .25s ease;
+}
+
+/* Lift on hover (desktop) */
+.uno-card:not(.dragging):hover .inner {
+  transform: translateY(-44px) scale(1.1) rotate(calc(var(--rot, 0) * -1deg));
+  box-shadow: 0 20px 40px rgba(0,0,0,.55);
+}
+
+/* Dragging state */
+.uno-card.dragging {
+  transition: none !important;
+  cursor: grabbing;
+  z-index: 10000 !important;
+}
+.uno-card.dragging .inner {
+  transform: scale(1.06);
+  box-shadow: 0 24px 48px rgba(0,0,0,.6);
+}
+
+/* Over discard zone */
+.uno-card.over-zone .inner {
+  box-shadow: 0 0 0 3px #fff, 0 24px 48px rgba(0,0,0,.6);
+}
+
+/* Card backgrounds */
+.uno-card-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('/assets/uno/Fundo carta.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.uno-card-color-overlay {
+  position: absolute;
+  inset: 6px;
+  border-radius: 7px;
+  opacity: 0.88;
+}
+
+.uno-card[data-color="red"]    .uno-card-color-overlay { background: #d72b2b; }
+.uno-card[data-color="blue"]   .uno-card-color-overlay { background: #1a5dc8; }
+.uno-card[data-color="green"]  .uno-card-color-overlay { background: #1e8e3e; }
+.uno-card[data-color="yellow"] .uno-card-color-overlay { background: #d4a800; }
+.uno-card[data-color="wild"]   .uno-card-color-overlay {
+  background: conic-gradient(#d72b2b 0 25%, #1a5dc8 25% 50%, #1e8e3e 50% 75%, #d4a800 75%);
+  border-radius: 50%;
+  inset: 12px;
+  opacity: 1;
+}
+
+.uno-card-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.uno-card-value.small-icon { font-size: 18px; }
+
+.uno-card[data-value="wild-draw-four"] .uno-card-value { color: #000; }
+
+/* ── Draw pile (card back) ────────────────────────────────────────── */
+
+.uno-draw-pile {
+  cursor: pointer;
+  transition: transform .12s ease;
+}
+.uno-draw-pile:active { transform: scale(.95) !important; }
+
+.uno-card-back-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+/* ── Hand area ────────────────────────────────────────────────────── */
+
+.uno-hand-area {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 220px;
+  touch-action: none;
+  overflow: visible;
+}
+
+/* ── Color picker overlay ─────────────────────────────────────────── */
+
+.uno-color-picker {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  gap: 20px;
+}
+
+.uno-color-picker-title {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.uno-color-picker-colors { display: flex; gap: 20px; }
+
+.uno-color-choice {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  cursor: pointer;
+  transition: transform .1s;
+}
+.uno-color-choice:active { transform: scale(.92); }
+.uno-color-choice[data-color="red"]    { background: #d72b2b; }
+.uno-color-choice[data-color="blue"]   { background: #1a5dc8; }
+.uno-color-choice[data-color="green"]  { background: #1e8e3e; }
+.uno-color-choice[data-color="yellow"] { background: #d4a800; }

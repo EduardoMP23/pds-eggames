@@ -4,12 +4,14 @@ const HiveGame  = require('../../domain/hive/HiveGame');
 const CoupGame  = require('../../domain/coup/CoupGame');
 const ItoGame   = require('../../domain/ito/ItoGame');
 const PokerGame = require('../../domain/poker/PokerGame');
+const UnoGame   = require('../../domain/uno/UnoGame');
 
 const GAME_CONFIGS = {
   hive:  { minPlayers: HiveGame.MIN_PLAYERS,  maxPlayers: HiveGame.MAX_PLAYERS  },
   coup:  { minPlayers: CoupGame.MIN_PLAYERS,  maxPlayers: CoupGame.MAX_PLAYERS  },
   ito:   { minPlayers: ItoGame.MIN_PLAYERS,   maxPlayers: ItoGame.MAX_PLAYERS   },
   poker: { minPlayers: PokerGame.MIN_PLAYERS, maxPlayers: PokerGame.MAX_PLAYERS },
+  uno:   { minPlayers: UnoGame.MIN_PLAYERS,   maxPlayers: UnoGame.MAX_PLAYERS   },
 };
 
 const DEFAULT_GAME_ID = 'hive';
@@ -114,7 +116,7 @@ class SocketHandler {
         if (result.error) {
           socket.emit('game:action-error', { message: result.error });
         } else {
-          const ANIM_ACTIONS = ['return-card-to-deck', 'ambassador-start'];
+          const ANIM_ACTIONS = ['return-card-to-deck', 'ambassador-start', 'play-card', 'draw-card'];
           if (ANIM_ACTIONS.includes(action.type)) {
             const info = this._rooms.getPlayerInfo(socket.id);
             if (info) {

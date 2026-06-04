@@ -4,12 +4,14 @@ const HiveGame  = require('../domain/hive/HiveGame');
 const CoupGame  = require('../domain/coup/CoupGame');
 const ItoGame   = require('../domain/ito/ItoGame');
 const PokerGame = require('../domain/poker/PokerGame');
+const UnoGame   = require('../domain/uno/UnoGame');
 
 const GAME_REGISTRY = {
   hive:  HiveGame,
   coup:  CoupGame,
   ito:   ItoGame,
   poker: PokerGame,
+  uno:   UnoGame,
 };
 
 /**

@@ -8,6 +8,7 @@
     coup:  { title: '👑 Coup',  css: '/css/games/coup.css',  js: '/js/games/coup.js'  },
     ito:   { title: '🎋 ITO',   css: '/css/games/ito.css',   js: '/js/games/ito.js'   },
     poker: { title: '🃏 Poker', css: '/css/games/poker.css', js: '/js/games/poker.js' },
+    uno:   { title: '🎴 UNO',   css: '/css/games/uno.css',   js: '/js/games/uno.js'   },
   };
 
   let gameModule = null;
