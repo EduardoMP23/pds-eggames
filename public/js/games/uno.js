@@ -9,6 +9,10 @@
   let _discardStack   = [];          // client-side stacking history
   let _prevTopCardKey = null;        // JSON key of last seen topCard
   let _discardPileRect = null;       // rect do monte de jogadas, capturado no render
+  let _handPanX        = 0;          // deslocamento horizontal do leque (pan)
+  let _maxHandPan      = 0;          // limite máximo de pan em cada direção
+  let _fanEl           = null;       // wrapper do leque (recebe translateX)
+  let _panOriginPanX   = 0;          // valor de _handPanX no início do gesto de pan
 
   // ── Card helpers ─────────────────────────────────────────────────────────────
 
@@ -118,47 +122,80 @@
 
   function attachDrag(el, card, cardIndex, tx, ty, rot) {
     let grabX = 0, grabY = 0, willPlay = false;
+    let gestureMode   = null; // null | 'pan' | 'drag'
+    let gestureStartX = 0, gestureStartY = 0;
 
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       el.setPointerCapture(e.pointerId);
-      el.classList.add('dragging');
-      const fr   = fundobounds();
-      grabX = e.clientX - fr.left - (tx + CARD_W / 2);
-      grabY = e.clientY - fr.top  - (ty + CARD_H / 2);
-      willPlay = false;
+      gestureMode   = null;
+      gestureStartX = e.clientX;
+      gestureStartY = e.clientY;
+      willPlay      = false;
     });
 
     el.addEventListener('pointermove', (e) => {
-      if (!el.classList.contains('dragging')) return;
-      const fr  = fundobounds();
-      const cx  = (e.clientX - fr.left) - grabX - CARD_W / 2;
-      const cy  = (e.clientY - fr.top)  - grabY - CARD_H / 2;
-      el.style.transform = `translate(${cx}px, ${cy}px) rotate(0deg)`;
+      const dx = e.clientX - gestureStartX;
+      const dy = e.clientY - gestureStartY;
 
-      const over = isOverDiscardPile(e.clientX, e.clientY);
-      willPlay   = over;
-      el.classList.toggle('over-zone', over);
-      const piles = _el.querySelector('#unoTablePiles');
-      if (piles) piles.classList.toggle('zone-hot', over);
+      if (gestureMode === null) {
+        if (Math.hypot(dx, dy) < 6) return;
+        if (Math.abs(dx) > Math.abs(dy) * 1.4) {
+          gestureMode    = 'pan';
+          _panOriginPanX = _handPanX;
+        } else {
+          gestureMode = 'drag';
+          el.classList.add('dragging');
+          const fr = fundobounds();
+          grabX = gestureStartX - fr.left - (tx + _handPanX + CARD_W / 2);
+          grabY = gestureStartY - fr.top  - (ty + CARD_H / 2);
+        }
+      }
+
+      if (gestureMode === 'pan') {
+        const newPan = Math.max(-_maxHandPan, Math.min(_maxHandPan, _panOriginPanX + dx));
+        if (_fanEl) {
+          _fanEl.style.transition = 'none';
+          _fanEl.style.transform  = `translateX(${newPan}px)`;
+        }
+      } else if (gestureMode === 'drag') {
+        const fr = fundobounds();
+        const cx = (e.clientX - fr.left) - grabX - CARD_W / 2 - _handPanX;
+        const cy = (e.clientY - fr.top)  - grabY - CARD_H / 2;
+        el.style.transform = `translate(${cx}px, ${cy}px) rotate(0deg)`;
+        const over = isOverDiscardPile(e.clientX, e.clientY);
+        willPlay = over;
+        el.classList.toggle('over-zone', over);
+        const piles = _el.querySelector('#unoTablePiles');
+        if (piles) piles.classList.toggle('zone-hot', over);
+      }
     });
 
     const onEnd = (e) => {
-      if (!el.classList.contains('dragging')) return;
-      el.classList.remove('dragging', 'over-zone');
       try { el.releasePointerCapture(e.pointerId); } catch (_) {}
-      const piles = _el.querySelector('#unoTablePiles');
-      if (piles) piles.classList.remove('zone-hot');
 
-      if (willPlay) {
-        willPlay = false;
-        _flyCardToDiscard(el, card);
-        _sendAction({ type: 'play-card', cardIndex });
-      } else {
-        willPlay = false;
-        el.style.transition = 'transform .4s cubic-bezier(.22,.9,.3,1)';
-        el.style.transform   = `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+      if (gestureMode === 'pan') {
+        const dx  = e.clientX - gestureStartX;
+        _handPanX = Math.max(-_maxHandPan, Math.min(_maxHandPan, _panOriginPanX + dx));
+        if (_fanEl) {
+          _fanEl.style.transition = 'transform .3s cubic-bezier(.22,.9,.3,1)';
+          _fanEl.style.transform  = `translateX(${_handPanX}px)`;
+        }
+      } else if (gestureMode === 'drag') {
+        el.classList.remove('dragging', 'over-zone');
+        const piles = _el.querySelector('#unoTablePiles');
+        if (piles) piles.classList.remove('zone-hot');
+        if (willPlay) {
+          willPlay = false;
+          _flyCardToDiscard(el.getBoundingClientRect(), card);
+          _sendAction({ type: 'play-card', cardIndex });
+        } else {
+          willPlay = false;
+          el.style.transition = 'transform .4s cubic-bezier(.22,.9,.3,1)';
+          el.style.transform  = `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+        }
       }
+      gestureMode = null;
     };
 
     el.addEventListener('pointerup',     onEnd);
@@ -198,29 +235,36 @@
     const badge = _findBadge(playerId);
     const piles = _el.querySelector('#unoTablePiles');
     if (!piles) return;
-    const from = badge ? badge.getBoundingClientRect() : _el.querySelector('#unoOpponents').getBoundingClientRect();
-    _flyGhost(from, piles.getBoundingClientRect());
+    const from = badge
+      ? badge.getBoundingClientRect()
+      : _el.querySelector('#unoOpponents').getBoundingClientRect();
+    const card = _state && _state.topCard;
+    if (card) _flyCardToDiscard(from, card);
+    else _flyGhost(from, piles.getBoundingClientRect());
   }
 
-  function _flyCardToDiscard(el, card) {
-    const from = el.getBoundingClientRect();
-    const to   = _discardPileRect;
+  function _flyCardToDiscard(fromRect, card) {
+    const to  = _discardPileRect;
     if (!to) return;
 
     const ghost = buildCardEl(card);
+    const rot   = (Math.random() * 16 - 8).toFixed(1);
     ghost.style.cssText = `
       position:fixed;
-      left:${from.left}px; top:${from.top}px;
+      left:${fromRect.left}px; top:${fromRect.top}px;
       width:${CARD_W}px; height:${CARD_H}px;
       pointer-events:none; z-index:9999;
-      transition:transform .35s cubic-bezier(.22,.9,.3,1), opacity .35s ease;
+      transition:transform .35s cubic-bezier(.22,.9,.3,1);
     `;
     document.body.appendChild(ghost);
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      ghost.style.transform = `translate(${to.left - from.left}px,${to.top - from.top}px) rotate(${(Math.random()*16-8).toFixed(1)}deg) scale(.85)`;
-      ghost.style.opacity   = '0';
+      ghost.style.transform = `translate(${to.left - fromRect.left}px,${to.top - fromRect.top}px) rotate(${rot}deg)`;
     }));
-    setTimeout(() => ghost.remove(), 400);
+    setTimeout(() => {
+      ghost.style.transition = 'opacity .1s ease';
+      ghost.style.opacity    = '0';
+      setTimeout(() => ghost.remove(), 110);
+    }, 360);
   }
 
   function animateOpponentDraw(playerId) {
@@ -363,13 +407,21 @@
     const n  = cards.length;
     const fw = handArea.clientWidth || 390;
 
-    const spread     = Math.min(fw * 0.92, n * CARD_W * 0.58);
-    const step       = n > 1 ? spread / (n - 1) : 0;
-    const startX     = fw / 2 - spread / 2;
+    const naturalSpread = n > 1 ? n * CARD_W * 0.58 : 0;
+    const overflow      = Math.max(0, naturalSpread + CARD_W - fw * 0.92);
+    _maxHandPan         = overflow / 2;
+    _handPanX           = Math.max(-_maxHandPan, Math.min(_maxHandPan, _handPanX));
+    const spread = naturalSpread;
+    const step   = n > 1 ? spread / (n - 1) : 0;
+    const startX = fw / 2 - spread / 2; // pan aplicado no wrapper _fanEl, não aqui
     const totalAngle = Math.min(n * 3, 32);
     const arcDepth   = Math.min(n * 2, 40);
     // Cards sit at the bottom of handArea; ty is the vertical offset from top of handArea
     const baseY = (handArea.clientHeight || 220) - CARD_H - 8;
+
+    _fanEl = document.createElement('div');
+    _fanEl.style.cssText = `position:absolute;inset:0;transform:translateX(${_handPanX}px);transition:transform .3s cubic-bezier(.22,.9,.3,1);`;
+    handArea.appendChild(_fanEl);
 
     cards.forEach((card, i) => {
       const t   = n > 1 ? i / (n - 1) - 0.5 : 0;
@@ -389,7 +441,7 @@
         transition:transform .42s cubic-bezier(.22,.9,.3,1);
         touch-action:none;
       `;
-      handArea.appendChild(el);
+      _fanEl.appendChild(el);
       _cardEls.set(i, el);
       attachDrag(el, card, i, tx, ty, rot);
     });
@@ -420,6 +472,9 @@
     _prevTopCardKey  = null;
     _discardPileRect = null;
     _cardEls.clear();
+    _handPanX        = 0;
+    _maxHandPan      = 0;
+    _fanEl           = null;
   }
 
   // ── Export ────────────────────────────────────────────────────────────────────

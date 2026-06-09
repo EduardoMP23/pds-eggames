@@ -5,6 +5,7 @@ const CoupGame  = require('../domain/coup/CoupGame');
 const ItoGame   = require('../domain/ito/ItoGame');
 const PokerGame = require('../domain/poker/PokerGame');
 const UnoGame   = require('../domain/uno/UnoGame');
+const BingoGame = require('../domain/bingo/BingoGame');
 
 const GAME_REGISTRY = {
   hive:  HiveGame,
@@ -12,6 +13,7 @@ const GAME_REGISTRY = {
   ito:   ItoGame,
   poker: PokerGame,
   uno:   UnoGame,
+  bingo: BingoGame,
 };
 
 /**
@@ -27,8 +29,9 @@ class GameService {
    * @param {import('./ports/EventBusPort')}       eventBus
    */
   constructor(roomRepository, eventBus) {
-    this._repo = roomRepository;
-    this._bus  = eventBus;
+    this._repo        = roomRepository;
+    this._bus         = eventBus;
+    this._bingoTimers = new Map(); // roomId → intervalId for auto-draw
   }
 
   _getGame(gameId) {
@@ -67,6 +70,7 @@ class GameService {
 
     this._bus.toRoom(roomId, 'game:start', { gameId: room.gameId, roomId });
     this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
+    if (room.gameId === 'bingo') this._startBingoTimer(roomId);
     return {};
   }
 
@@ -94,12 +98,14 @@ class GameService {
       room.players.forEach(p => { p.ready = false; });
       this._bus.toRoom(roomId, 'game:reset', {});
       this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
+      if (room.gameId === 'bingo') this._startBingoTimer(roomId);
       return {};
     }
 
     // ── Leave (back to lobby) ──────────────────────────────────────────────
     if (action.type === 'leave') {
       if (!['playing', 'finished'].includes(room.status)) return {};
+      this._clearBingoTimer(roomId);
       room.status = 'lobby';
       room.gameState = null;
       room.players.forEach(p => { p.ready = false; });
@@ -130,6 +136,64 @@ class GameService {
 
     this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
     return {};
+  }
+
+  // ── Bingo auto-draw timer ──────────────────────────────────────────────────
+
+  _startBingoTimer(roomId) {
+    this._clearBingoTimer(roomId);
+    const timeoutId = setTimeout(() => {
+      this._serverBingoDraw(roomId);
+      const id = setInterval(() => this._serverBingoDraw(roomId), 10000);
+      this._bingoTimers.set(roomId, id);
+    }, 5000);
+    this._bingoTimers.set(roomId, timeoutId);
+  }
+
+  _clearBingoTimer(roomId) {
+    const id = this._bingoTimers.get(roomId);
+    if (id !== undefined) {
+      clearTimeout(id);
+      clearInterval(id);
+      this._bingoTimers.delete(roomId);
+    }
+  }
+
+  _serverBingoDraw(roomId) {
+    const room = this._repo.getRoom(roomId);
+    if (!room || room.status !== 'playing' || !room.gameState) {
+      this._clearBingoTimer(roomId);
+      return;
+    }
+
+    const Game   = this._getGame(room.gameId);
+    const result = Game.applyAction(room.gameState, { type: 'draw-number' }, null);
+
+    if (result.error) {
+      this._clearBingoTimer(roomId);
+      return;
+    }
+
+    if (result.gameOver) {
+      room.players.forEach(p => { p.ready = false; });
+      room.status = 'finished';
+      this._bus.toRoom(roomId, 'game:over', {
+        winner:     result.winner,
+        winnerName: result.winnerName,
+        reason:     result.reason,
+        teamWin:    result.teamWin || false,
+      });
+      this._clearBingoTimer(roomId);
+    }
+
+    this._bus.broadcastGameState(
+      room,
+      playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId)
+    );
+
+    if (room.gameState.pool.length === 0) {
+      this._clearBingoTimer(roomId);
+    }
   }
 
   // ── Use case: reconnect a player ────────────────────────────────────────────

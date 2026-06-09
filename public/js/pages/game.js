@@ -9,6 +9,7 @@
     ito:   { title: '🎋 ITO',   css: '/css/games/ito.css',   js: '/js/games/ito.js'   },
     poker: { title: '🃏 Poker', css: '/css/games/poker.css', js: '/js/games/poker.js' },
     uno:   { title: '🎴 UNO',   css: '/css/games/uno.css',   js: '/js/games/uno.js'   },
+    bingo: { title: '🎱 Bingo', css: '/css/games/bingo.css', js: '/js/games/bingo.js' },
   };
 
   let gameModule = null;

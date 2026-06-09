@@ -178,6 +178,9 @@
 }
 
 /* Lift on hover (desktop) */
+.uno-card:not(.dragging):hover {
+  z-index: 1000 !important;
+}
 .uno-card:not(.dragging):hover .inner {
   transform: translateY(-44px) scale(1.1) rotate(calc(var(--rot, 0) * -1deg));
   box-shadow: 0 20px 40px rgba(0,0,0,.55);

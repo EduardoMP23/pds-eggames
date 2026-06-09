@@ -5,6 +5,7 @@ const CoupGame  = require('../../domain/coup/CoupGame');
 const ItoGame   = require('../../domain/ito/ItoGame');
 const PokerGame = require('../../domain/poker/PokerGame');
 const UnoGame   = require('../../domain/uno/UnoGame');
+const BingoGame = require('../../domain/bingo/BingoGame');
 
 const GAME_CONFIGS = {
   hive:  { minPlayers: HiveGame.MIN_PLAYERS,  maxPlayers: HiveGame.MAX_PLAYERS  },
@@ -12,6 +13,7 @@ const GAME_CONFIGS = {
   ito:   { minPlayers: ItoGame.MIN_PLAYERS,   maxPlayers: ItoGame.MAX_PLAYERS   },
   poker: { minPlayers: PokerGame.MIN_PLAYERS, maxPlayers: PokerGame.MAX_PLAYERS },
   uno:   { minPlayers: UnoGame.MIN_PLAYERS,   maxPlayers: UnoGame.MAX_PLAYERS   },
+  bingo: { minPlayers: BingoGame.MIN_PLAYERS, maxPlayers: BingoGame.MAX_PLAYERS },
 };
 
 const DEFAULT_GAME_ID = 'hive';
@@ -116,11 +118,13 @@ class SocketHandler {
         if (result.error) {
           socket.emit('game:action-error', { message: result.error });
         } else {
-          const ANIM_ACTIONS = ['return-card-to-deck', 'ambassador-start', 'play-card', 'draw-card'];
+          const ANIM_ACTIONS = ['return-card-to-deck', 'ambassador-start', 'play-card', 'draw-card', 'call-bingo'];
           if (ANIM_ACTIONS.includes(action.type)) {
             const info = this._rooms.getPlayerInfo(socket.id);
             if (info) {
-              this._io.to(roomId).emit('game:animate', { type: action.type, playerId: info.playerId });
+              const payload = { type: action.type, playerId: info.playerId };
+              if (action.type === 'call-bingo') payload.playerName = info.playerName;
+              this._io.to(roomId).emit('game:animate', payload);
             }
           }
         }
