@@ -414,6 +414,11 @@
       desc: 'Sorteio em tempo real. Marque sua cartela e seja o primeiro a gritar BINGO!',
       accent: '#ff2e88', frame: 'px-frame--pink',
     },
+    {
+      id: 'pioramigo', title: 'PIOR AMIGO', tag: 'SOCIAL', players: '3-10', duration: '20 min',
+      desc: 'Quem é o pior amigo da mesa? Vote, acuse e assuma sua culpa.',
+      accent: '#b14aed', frame: 'px-frame--pink',
+    },
   ];
 
   function CoupArt() {
@@ -515,7 +520,24 @@
       </svg>
     );
   }
-  const COVER = { coup: CoupArt, ito: ItoArt, hive: HiveArt, poker: PokerArt, uno: UnoArt, bingo: BingoArt };
+  function PiorAmigoArt() {
+    return (
+      <svg viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg" shapeRendering="crispEdges" style={{width:'100%',height:'100%'}}>
+        <rect x="10" y="4"  width="44" height="36" rx="3" fill="#1a001a"/>
+        <rect x="10" y="4"  width="44" height="36" rx="3" fill="none" stroke="#b14aed" strokeWidth="2"/>
+        <rect x="14" y="8"  width="36" height="28" rx="2" fill="#0d000d"/>
+        <rect x="28" y="10" width="8"  height="2"  fill="#b14aed"/>
+        <rect x="22" y="14" width="20" height="2"  fill="#b14aed"/>
+        <rect x="18" y="18" width="28" height="2"  fill="#6b2a8a"/>
+        <rect x="18" y="22" width="28" height="2"  fill="#6b2a8a"/>
+        <rect x="18" y="26" width="20" height="2"  fill="#6b2a8a"/>
+        <rect x="24" y="32" width="16" height="2"  fill="#ff2e88"/>
+        <rect x="18" y="4"  width="4"  height="4"  fill="#ff2e88"/>
+        <rect x="42" y="36" width="4"  height="4"  fill="#ff2e88"/>
+      </svg>
+    );
+  }
+  const COVER = { coup: CoupArt, ito: ItoArt, hive: HiveArt, poker: PokerArt, uno: UnoArt, bingo: BingoArt, pioramigo: PiorAmigoArt };
 
   function GameSelectScreen({ player, onBack }) {
     const [hovered, setHovered]   = useState(null);

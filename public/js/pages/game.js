@@ -4,12 +4,13 @@
   const myPlayerName = sessionStorage.getItem('playerName');
 
   const GAME_META = {
-    hive:  { title: '🐝 Hive',  css: '/css/games/hive.css',  js: '/js/games/hive.js'  },
-    coup:  { title: '👑 Coup',  css: '/css/games/coup.css',  js: '/js/games/coup.js'  },
-    ito:   { title: '🎋 ITO',   css: '/css/games/ito.css',   js: '/js/games/ito.js'   },
-    poker: { title: '🃏 Poker', css: '/css/games/poker.css', js: '/js/games/poker.js' },
-    uno:   { title: '🎴 UNO',   css: '/css/games/uno.css',   js: '/js/games/uno.js'   },
-    bingo: { title: '🎱 Bingo', css: '/css/games/bingo.css', js: '/js/games/bingo.js' },
+    hive:       { title: '🐝 Hive',        css: '/css/games/hive.css',       js: '/js/games/hive.js'       },
+    coup:       { title: '👑 Coup',        css: '/css/games/coup.css',       js: '/js/games/coup.js'       },
+    ito:        { title: '🎋 ITO',         css: '/css/games/ito.css',        js: '/js/games/ito.js'        },
+    poker:      { title: '🃏 Poker',       css: '/css/games/poker.css',      js: '/js/games/poker.js'      },
+    uno:        { title: '🎴 UNO',         css: '/css/games/uno.css',        js: '/js/games/uno.js'        },
+    bingo:      { title: '🎱 Bingo',       css: '/css/games/bingo.css',      js: '/js/games/bingo.js'      },
+    pioramigo:  { title: '😈 Pior Amigo',  css: '/css/games/pioramigo.css',  js: '/js/games/pioramigo.js'  },
   };
 
   let gameModule = null;

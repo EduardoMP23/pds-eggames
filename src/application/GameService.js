@@ -1,19 +1,21 @@
 'use strict';
 
-const HiveGame  = require('../domain/hive/HiveGame');
-const CoupGame  = require('../domain/coup/CoupGame');
-const ItoGame   = require('../domain/ito/ItoGame');
-const PokerGame = require('../domain/poker/PokerGame');
-const UnoGame   = require('../domain/uno/UnoGame');
-const BingoGame = require('../domain/bingo/BingoGame');
+const HiveGame       = require('../domain/hive/HiveGame');
+const CoupGame       = require('../domain/coup/CoupGame');
+const ItoGame        = require('../domain/ito/ItoGame');
+const PokerGame      = require('../domain/poker/PokerGame');
+const UnoGame        = require('../domain/uno/UnoGame');
+const BingoGame      = require('../domain/bingo/BingoGame');
+const PiorAmigoGame  = require('../domain/pioramigo/PiorAmigoGame');
 
 const GAME_REGISTRY = {
-  hive:  HiveGame,
-  coup:  CoupGame,
-  ito:   ItoGame,
-  poker: PokerGame,
-  uno:   UnoGame,
-  bingo: BingoGame,
+  hive:       HiveGame,
+  coup:       CoupGame,
+  ito:        ItoGame,
+  poker:      PokerGame,
+  uno:        UnoGame,
+  bingo:      BingoGame,
+  pioramigo:  PiorAmigoGame,
 };
 
 /**
@@ -29,9 +31,10 @@ class GameService {
    * @param {import('./ports/EventBusPort')}       eventBus
    */
   constructor(roomRepository, eventBus) {
-    this._repo        = roomRepository;
-    this._bus         = eventBus;
-    this._bingoTimers = new Map(); // roomId → intervalId for auto-draw
+    this._repo           = roomRepository;
+    this._bus            = eventBus;
+    this._bingoTimers    = new Map(); // roomId → intervalId for auto-draw
+    this._readingTimers  = new Map(); // roomId → timeoutId for pioramigo reading phase
   }
 
   _getGame(gameId) {
@@ -64,13 +67,14 @@ class GameService {
     }
 
     room.gameState = Game.initState(
-      connected.map(p => ({ playerId: p.playerId, playerName: p.playerName }))
+      connected.map(p => ({ playerId: p.playerId, playerName: p.playerName, avatar: p.avatar || null, color: p.color || null }))
     );
     room.status = 'playing';
 
     this._bus.toRoom(roomId, 'game:start', { gameId: room.gameId, roomId });
     this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
-    if (room.gameId === 'bingo') this._startBingoTimer(roomId);
+    if (room.gameId === 'bingo')      this._startBingoTimer(roomId);
+    if (room.gameId === 'pioramigo')  this._startReadingTimer(roomId);
     return {};
   }
 
@@ -92,13 +96,14 @@ class GameService {
 
       const connected = room.players.filter(p => p.connected);
       room.gameState = Game.initState(
-        connected.map(p => ({ playerId: p.playerId, playerName: p.playerName }))
+        connected.map(p => ({ playerId: p.playerId, playerName: p.playerName, avatar: p.avatar || null, color: p.color || null }))
       );
       room.status = 'playing';
       room.players.forEach(p => { p.ready = false; });
       this._bus.toRoom(roomId, 'game:reset', {});
       this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
-      if (room.gameId === 'bingo') this._startBingoTimer(roomId);
+      if (room.gameId === 'bingo')      this._startBingoTimer(roomId);
+      if (room.gameId === 'pioramigo')  this._startReadingTimer(roomId);
       return {};
     }
 
@@ -106,6 +111,7 @@ class GameService {
     if (action.type === 'leave') {
       if (!['playing', 'finished'].includes(room.status)) return {};
       this._clearBingoTimer(roomId);
+      this._clearReadingTimer(roomId);
       room.status = 'lobby';
       room.gameState = null;
       room.players.forEach(p => { p.ready = false; });
@@ -135,7 +141,36 @@ class GameService {
     }
 
     this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
+
+    // restart reading timer when pioramigo advances to a new reading phase
+    if (room.gameId === 'pioramigo' && result.advancedToReading) {
+      this._startReadingTimer(roomId);
+    }
+
     return {};
+  }
+
+  // ── Pior Amigo reading-phase timer ────────────────────────────────────────
+
+  _startReadingTimer(roomId) {
+    this._clearReadingTimer(roomId);
+    const id = setTimeout(() => {
+      const room = this._repo.getRoom(roomId);
+      if (!room || room.status !== 'playing' || !room.gameState) return;
+      const Game = this._getGame(room.gameId);
+      Game.applyAction(room.gameState, { type: '_advance-accepting' }, null);
+      this._bus.broadcastGameState(room, pid => Game.getPublicState(room.gameState, pid, room.hostPlayerId));
+      this._readingTimers.delete(roomId);
+    }, 10000);
+    this._readingTimers.set(roomId, id);
+  }
+
+  _clearReadingTimer(roomId) {
+    const id = this._readingTimers.get(roomId);
+    if (id !== undefined) {
+      clearTimeout(id);
+      this._readingTimers.delete(roomId);
+    }
   }
 
   // ── Bingo auto-draw timer ──────────────────────────────────────────────────

@@ -1,19 +1,21 @@
 'use strict';
 
-const HiveGame  = require('../../domain/hive/HiveGame');
-const CoupGame  = require('../../domain/coup/CoupGame');
-const ItoGame   = require('../../domain/ito/ItoGame');
-const PokerGame = require('../../domain/poker/PokerGame');
-const UnoGame   = require('../../domain/uno/UnoGame');
-const BingoGame = require('../../domain/bingo/BingoGame');
+const HiveGame       = require('../../domain/hive/HiveGame');
+const CoupGame       = require('../../domain/coup/CoupGame');
+const ItoGame        = require('../../domain/ito/ItoGame');
+const PokerGame      = require('../../domain/poker/PokerGame');
+const UnoGame        = require('../../domain/uno/UnoGame');
+const BingoGame      = require('../../domain/bingo/BingoGame');
+const PiorAmigoGame  = require('../../domain/pioramigo/PiorAmigoGame');
 
 const GAME_CONFIGS = {
-  hive:  { minPlayers: HiveGame.MIN_PLAYERS,  maxPlayers: HiveGame.MAX_PLAYERS  },
-  coup:  { minPlayers: CoupGame.MIN_PLAYERS,  maxPlayers: CoupGame.MAX_PLAYERS  },
-  ito:   { minPlayers: ItoGame.MIN_PLAYERS,   maxPlayers: ItoGame.MAX_PLAYERS   },
-  poker: { minPlayers: PokerGame.MIN_PLAYERS, maxPlayers: PokerGame.MAX_PLAYERS },
-  uno:   { minPlayers: UnoGame.MIN_PLAYERS,   maxPlayers: UnoGame.MAX_PLAYERS   },
-  bingo: { minPlayers: BingoGame.MIN_PLAYERS, maxPlayers: BingoGame.MAX_PLAYERS },
+  hive:       { minPlayers: HiveGame.MIN_PLAYERS,      maxPlayers: HiveGame.MAX_PLAYERS      },
+  coup:       { minPlayers: CoupGame.MIN_PLAYERS,      maxPlayers: CoupGame.MAX_PLAYERS      },
+  ito:        { minPlayers: ItoGame.MIN_PLAYERS,       maxPlayers: ItoGame.MAX_PLAYERS       },
+  poker:      { minPlayers: PokerGame.MIN_PLAYERS,     maxPlayers: PokerGame.MAX_PLAYERS     },
+  uno:        { minPlayers: UnoGame.MIN_PLAYERS,       maxPlayers: UnoGame.MAX_PLAYERS       },
+  bingo:      { minPlayers: BingoGame.MIN_PLAYERS,     maxPlayers: BingoGame.MAX_PLAYERS     },
+  pioramigo:  { minPlayers: PiorAmigoGame.MIN_PLAYERS, maxPlayers: PiorAmigoGame.MAX_PLAYERS },
 };
 
 const DEFAULT_GAME_ID = 'hive';

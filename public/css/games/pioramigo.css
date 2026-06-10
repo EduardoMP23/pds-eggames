@@ -1,0 +1,218 @@
+/* ── Pior Amigo ─────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Gochi+Hand&display=swap');
+
+.pa-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: #0a0a0a;
+  color: #fff;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.pa-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+.pa-back-btn,
+.pa-reiniciar-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.pa-btn-icon {
+  width: 46px;
+  height: 46px;
+  display: block;
+  transition: transform 0.08s;
+}
+.pa-btn-icon:active { transform: scale(0.88); }
+.pa-reiniciar-btn--hidden { display: none; }
+
+/* ── Players strip ──────────────────────────────────────────────────────── */
+.pa-players-strip {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+  border-top: 1px solid #1e1e1e;
+  border-bottom: 1px solid #1e1e1e;
+  background: #111;
+}
+.pa-players-strip::-webkit-scrollbar { display: none; }
+
+.pa-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 58px;
+  padding: 6px 4px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  transition: border-color 0.2s, background 0.2s;
+}
+.pa-player--reader {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.07);
+}
+.pa-player--accepted {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  animation: pa-accepted-pulse 0.5s ease 2;
+}
+.pa-player--me {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+@keyframes pa-accepted-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.07); }
+}
+
+.pa-avatar {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pa-player-name {
+  font-size: 9px;
+  color: #ccc;
+  text-align: center;
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pa-player-score {
+  font-size: 11px;
+  font-weight: 700;
+  color: #d4d4d4;
+}
+
+/* ── Card area ──────────────────────────────────────────────────────────── */
+.pa-card-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  min-height: 0;
+}
+
+/* 3D card container */
+.pa-card-wrap {
+  perspective: 900px;
+  width: min(280px, 80vw);
+  height: min(380px, 55vh);
+  flex-shrink: 0;
+}
+.pa-card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 16px;
+  cursor: default;
+  touch-action: none;
+}
+.pa-card--flipped {
+  transform: rotateY(180deg);
+}
+.pa-card--dragging {
+  transition: none !important;
+  cursor: grabbing;
+}
+.pa-card--snap {
+  transition: transform 0.4s cubic-bezier(.22,.9,.3,1) !important;
+}
+.pa-card--fall {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 1, 1) !important;
+}
+.pa-card--near-threshold {
+  filter: drop-shadow(0 0 14px rgba(255,255,255,0.6));
+}
+
+.pa-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: left;
+}
+
+/* Card image — object-fit: contain preserves aspect ratio without cropping */
+.pa-card-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+/* Back face */
+.pa-card-back {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+
+/* Front face (phrase) */
+.pa-card-front {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  transform: rotateY(180deg);
+}
+.pa-card-phrase {
+  position: relative;
+  z-index: 1;
+  font-family: 'Gochi Hand', cursive;
+  font-size: clamp(16px, 4vw, 22px);
+  color: #fff;
+  line-height: 1.4;
+  text-align: left;
+  align-self: stretch;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+.pa-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #222;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 13px;
+  opacity: 0;
+  transition: transform 0.25s, opacity 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 100;
+}
+.pa-toast--visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
