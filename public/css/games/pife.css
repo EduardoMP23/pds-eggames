@@ -1,0 +1,155 @@
+/* ── Pife ─────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&display=swap');
+
+.pf-field {
+  position: relative; height: 100dvh; touch-action: none; overflow: hidden;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  user-select: none; -webkit-user-select: none;
+  background: radial-gradient(125% 110% at 50% 42%, #f7b500 0%, #ef9f06 42%, #dd820a 74%, #c66c0a 100%);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.pf-topbtn {
+  position: absolute; top: 16px; width: 54px; height: 54px; border-radius: 14px;
+  background: linear-gradient(180deg, #ffc44d, #f5a623);
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 26px; color: #3a2400; box-shadow: 0 4px 10px rgba(0,0,0,.25);
+  z-index: 5000;
+}
+.pf-topbtn:active { transform: scale(.93); }
+.pf-btn-back  { left: 14px; }
+.pf-btn-reset { left: 78px; }
+.pf-btn-reset--hidden { display: none; }
+
+/* ── Avatares ───────────────────────────────────────────────────────────── */
+.pf-avatars {
+  position: absolute; top: 102px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: clamp(10px, 2.5vw, 44px);
+  padding: 0 144px; flex-wrap: nowrap;
+}
+.pf-player { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pf-avatar { width: clamp(30px, 5.5vw, 50px); }
+.pf-avatar svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,.2)); }
+.pf-player-name {
+  font-size: 9px; font-weight: 700; color: rgba(58,36,0,0.8);
+  max-width: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pf-player--current .pf-avatar svg {
+  filter: drop-shadow(0 0 7px rgba(255,255,255,.9)) drop-shadow(0 2px 4px rgba(0,0,0,.2));
+}
+.pf-player--current .pf-player-name { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+
+/* Indicador "carta +" */
+.pf-addcard {
+  position: absolute; top: 88%; left: 14%;
+  width: clamp(20px, 3vw, 36px); height: clamp(28px, 4.5vw, 50px);
+  background: #fff; border-radius: 5px; box-shadow: 0 3px 6px rgba(0,0,0,.3);
+  display: flex; align-items: center; justify-content: center;
+  transform-origin: 50% 0%;
+  animation: pf-sway 1.05s ease-in-out infinite;
+  pointer-events: none;
+}
+.pf-addcard::after {
+  content: "+"; position: absolute; right: -8px; top: -5px;
+  font-weight: 800; font-size: clamp(14px, 2.2vw, 22px); color: #222;
+}
+@keyframes pf-sway {
+  0%, 100% { transform: rotate(-11deg) scale(1); }
+  50%       { transform: rotate(11deg) scale(1.06); }
+}
+
+/* ── Mesa ───────────────────────────────────────────────────────────────── */
+.pf-table {
+  position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%);
+  width: min(46vw, 420px); height: min(30vw, 270px);
+  min-width: 230px; min-height: 148px;
+  border-radius: 200px; background: #8a6a23; padding: 15px;
+  box-shadow: 0 16px 30px rgba(0,0,0,.3);
+}
+.pf-felt {
+  width: 100%; height: 100%; border-radius: 180px;
+  background: radial-gradient(120% 130% at 50% 40%, #1f7a4f 0%, #18603e 60%, #124b30 100%);
+  box-shadow: inset 0 8px 20px rgba(0,0,0,.4);
+  position: relative;
+}
+
+/* ── Slots ──────────────────────────────────────────────────────────────── */
+.pf-slot {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: var(--pf-cw, 84px); height: var(--pf-ch, 117px); border-radius: 10px;
+}
+#pfDiscardSlot { left: 68%; }
+#pfStockSlot   { left: 32%; border: 2px dashed rgba(255,255,255,.55); cursor: pointer; }
+#pfStockSlot:active { transform: translate(-50%, -50%) scale(.95); }
+#pfStockSlot.pf-disabled { cursor: default; opacity: 0.65; }
+
+#pfDiscardSlot.pf-hot::after {
+  content: ""; position: absolute; inset: -8px; border-radius: 15px;
+  box-shadow: 0 0 0 3px #ffe28a, 0 0 26px rgba(255,226,138,.7);
+}
+
+/* ── Cartas ─────────────────────────────────────────────────────────────── */
+.pf-card {
+  position: absolute; left: 0; top: 0;
+  width: var(--pf-cw, 84px); height: var(--pf-ch, 117px);
+  transform-origin: 50% 100%; will-change: transform;
+  transition: transform .4s cubic-bezier(.22,.9,.3,1), opacity .2s ease;
+}
+.pf-card.pf-dragging  { transition: none !important; z-index: 10000 !important; cursor: grabbing; }
+.pf-card.pf-hand-card { cursor: grab; }
+.pf-card.pf-anim-fly  { pointer-events: none; }
+
+.pf-card .pf-inner {
+  width: 100%; height: 100%; border-radius: 10px; position: relative; overflow: hidden;
+  background: linear-gradient(160deg, #fff, #eef0f3);
+  box-shadow: 0 5px 12px rgba(0,0,0,.32), inset 0 0 0 1px rgba(0,0,0,.05);
+  transition: transform .25s cubic-bezier(.22,.9,.3,1), box-shadow .25s ease;
+}
+.pf-hand-card:not(.pf-dragging):hover .pf-inner {
+  transform: translateY(-36px) scale(1.1) rotate(calc(var(--pf-rot, 0) * -1deg));
+  box-shadow: 0 20px 35px rgba(0,0,0,.5), inset 0 0 0 1px rgba(0,0,0,.05);
+}
+.pf-hand-card:not(.pf-dragging):hover { z-index: 9000; }
+
+.pf-face { position: absolute; inset: 0; }
+.pf-pip {
+  position: absolute; top: 9%; left: 0; right: 0; text-align: center;
+  font-size: calc(var(--pf-cw, 84px) * .42); line-height: 1;
+}
+.pf-rank {
+  position: absolute; bottom: 6%; left: 0; right: 0; text-align: center;
+  font-weight: 800; font-size: calc(var(--pf-cw, 84px) * .38); line-height: 1;
+}
+.pf-red   { color: #e23a3a; }
+.pf-black { color: #1f2630; }
+
+.pf-back-face {
+  position: absolute; inset: 0; border-radius: 10px;
+  background: repeating-linear-gradient(45deg, #b23b3b 0 7px, #9c2f2f 7px 14px);
+  box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 6px #b23b3b;
+}
+.pf-stockcount {
+  position: absolute; bottom: -24px; left: 0; right: 0; text-align: center;
+  color: #fff; font-weight: 700; font-size: 13px; text-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+
+/* ── Bandeja ────────────────────────────────────────────────────────────── */
+#pfTray {
+  position: absolute; border-radius: 22px;
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 -4px 16px rgba(0,0,0,.18);
+  z-index: 50; pointer-events: none;
+  transition: all .3s ease;
+}
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+.pf-toast {
+  position: absolute; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #222; color: #fff; border: 1px solid #555;
+  border-radius: 10px; padding: 10px 20px; font-size: 13px;
+  opacity: 0; transition: transform .25s, opacity .25s;
+  pointer-events: none; white-space: nowrap; z-index: 10100;
+}
+.pf-toast--visible { transform: translateX(-50%) translateY(0); opacity: 1; }

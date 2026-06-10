@@ -19,6 +19,28 @@
     .brand-logo { display:flex; align-items:center; gap:10px; font-family:'Press Start 2P',monospace; font-size:14px; color:var(--ink-0); text-decoration:none; }
     .brand-right { display:flex; align-items:center; gap:12px; }
 
+    /* ── Adult warning modal ── */
+    .adult-overlay {
+      position: fixed; inset: 0; z-index: 9500;
+      background: rgba(0,0,0,0.94);
+      display: flex; align-items: center; justify-content: center;
+      animation: enter-bottom 0.2s steps(4);
+    }
+    .adult-box {
+      display: flex; flex-direction: column; gap: 18px;
+      padding: 28px 24px; width: min(360px, 92vw); text-align: center;
+    }
+    .adult-icon { font-size: 42px; line-height: 1; }
+    .adult-title {
+      font-family: 'Press Start 2P', monospace; font-size: 13px;
+      color: #ff3860; text-shadow: 0 0 12px #ff3860;
+    }
+    .adult-body {
+      font-family: 'VT323', monospace; font-size: 18px;
+      color: var(--ink-1); line-height: 1.5;
+    }
+    .adult-actions { display: flex; gap: 10px; justify-content: center; }
+
     /* ── Invite modal ── */
     .invite-overlay {
       position: fixed; inset: 0; z-index: 9000;
@@ -71,9 +93,11 @@
   const FALLBACK_AV = window.AVATAR_KEYS || ['knight','wizard','ninja','robot','alien','cat','ghost','skull','bat','dragon','pug','slime'];
   const FALLBACK_CL = ['#ff2e88','#00f0ff','#39ff7a','#ffe600','#ff7a1f','#b14aed','#ff3860','#5effc1'];
   const GAME_META = {
-    coup: { title: 'COUP', accent: '#ffe600', frameClass: 'px-frame--yellow' },
-    ito:  { title: 'ITO',  accent: '#00f0ff', frameClass: 'px-frame--cyan'   },
-    hive: { title: 'HIVE', accent: '#ff7a1f', frameClass: 'px-frame--green'  },
+    coup:      { title: 'COUP',       accent: '#ffe600', frameClass: 'px-frame--yellow' },
+    ito:       { title: 'ITO',        accent: '#00f0ff', frameClass: 'px-frame--cyan'   },
+    hive:      { title: 'HIVE',       accent: '#ff7a1f', frameClass: 'px-frame--green'  },
+    pife:      { title: 'PIFE',       accent: '#f7b500', frameClass: 'px-frame--yellow' },
+    pioramigo: { title: 'PIOR AMIGO', accent: '#b14aed', frameClass: 'px-frame--pink'   },
   };
   const EMOJI_LIST = ['👋','🔥','😈','🎲','💀','⚡','🛸','👑'];
 
@@ -169,12 +193,27 @@
     const [messages, setMessages] = useState([]);
     const [draft,    setDraft]    = useState('');
     const [isHost,   setIsHost]   = useState(false);
-    const [isReady,  setIsReady]  = useState(false);
+    const [isReady,       setIsReady]       = useState(false);
+    const [adultOk,       setAdultOk]       = useState(false);
+    const [showAdultModal,setShowAdultModal] = useState(false);
+
     const toggleReady = () => {
+      if (!isReady && gameData?.gameId === 'pioramigo' && !adultOk) {
+        setShowAdultModal(true);
+        return;
+      }
       const next = !isReady;
       setIsReady(next);
       socketRef.current?.emit('lobby:ready', { roomId, ready: next });
     };
+
+    const confirmAdult = () => {
+      setAdultOk(true);
+      setShowAdultModal(false);
+      setIsReady(true);
+      socketRef.current?.emit('lobby:ready', { roomId, ready: true });
+    };
+
     const [gameData, setGameData] = useState(null);
     const [showInvite, setShowInvite] = useState(false);
     const [hostId,   setHostId]   = useState(null);
@@ -286,6 +325,28 @@
     return (
       <div className="pl-screen enter-bottom">
         {showInvite && <InviteModal roomId={roomId} onClose={() => setShowInvite(false)} />}
+
+        {showAdultModal && (
+          <div className="adult-overlay">
+            <div className="adult-box px-frame px-frame--pink">
+              <div className="adult-icon">🔞</div>
+              <div className="adult-title">CONTEÚDO +18</div>
+              <div className="adult-body">
+                Este jogo contém perguntas com conteúdo explícito, sensível e impróprio para menores de 18 anos.<br/><br/>
+                Ao continuar, você confirma que tem 18 anos ou mais e concorda em participar.
+              </div>
+              <div className="adult-actions">
+                <button className="btn-px btn-px--green" onClick={confirmAdult}>
+                  ✓ TENHO 18+ — CONTINUAR
+                </button>
+                <button className="btn-px btn-px--ghost" onClick={() => setShowAdultModal(false)}>
+                  ✕ CANCELAR
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <BrandBar playerName={myName} avatarKind={myAvatar} avatarColor={myColor} onBack={leaveRoom} />
 
         <main style={{ flex:1, padding:'24px 16px 32px', maxWidth:1200, margin:'0 auto', width:'100%', display:'flex', flexDirection:'column', gap:20 }}>

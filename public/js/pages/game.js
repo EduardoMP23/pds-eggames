@@ -11,6 +11,7 @@
     uno:        { title: '🎴 UNO',         css: '/css/games/uno.css',        js: '/js/games/uno.js'        },
     bingo:      { title: '🎱 Bingo',       css: '/css/games/bingo.css',      js: '/js/games/bingo.js'      },
     pioramigo:  { title: '😈 Pior Amigo',  css: '/css/games/pioramigo.css',  js: '/js/games/pioramigo.js'  },
+    pife:       { title: '🃏 Pife',        css: '/css/games/pife.css',        js: '/js/games/pife.js'        },
   };
 
   let gameModule = null;

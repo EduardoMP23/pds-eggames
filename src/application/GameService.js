@@ -7,6 +7,7 @@ const PokerGame      = require('../domain/poker/PokerGame');
 const UnoGame        = require('../domain/uno/UnoGame');
 const BingoGame      = require('../domain/bingo/BingoGame');
 const PiorAmigoGame  = require('../domain/pioramigo/PiorAmigoGame');
+const PifeGame       = require('../domain/pife/PifeGame');
 
 const GAME_REGISTRY = {
   hive:       HiveGame,
@@ -16,6 +17,7 @@ const GAME_REGISTRY = {
   uno:        UnoGame,
   bingo:      BingoGame,
   pioramigo:  PiorAmigoGame,
+  pife:       PifeGame,
 };
 
 /**
@@ -147,7 +149,7 @@ class GameService {
       this._startReadingTimer(roomId);
     }
 
-    return {};
+    return { animCard: result.animCard || null };
   }
 
   // ── Pior Amigo reading-phase timer ────────────────────────────────────────

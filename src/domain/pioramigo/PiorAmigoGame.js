@@ -3,7 +3,7 @@
 const CARDS = require('./cards');
 
 const MIN_PLAYERS = 3;
-const MAX_PLAYERS = 10;
+const MAX_PLAYERS = 21;
 
 function shuffle(arr) {
   const a = arr.slice();
