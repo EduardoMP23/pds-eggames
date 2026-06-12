@@ -155,6 +155,13 @@ function applyAction(state, action, playerId) {
   return { error: 'Ação inválida' };
 }
 
+// Saída individual: libera o número do jogador — o next-round redistribui
+// os números só entre os jogadores restantes.
+function removePlayer(state, playerId) {
+  delete state.hands[playerId];
+  state.players = state.players.filter(p => p.playerId !== playerId);
+}
+
 function getPublicState(state, forPlayerId) {
   return {
     theme:      state.theme,
@@ -169,4 +176,4 @@ function getPublicState(state, forPlayerId) {
   };
 }
 
-module.exports = { initState, applyAction, getPublicState, MIN_PLAYERS, MAX_PLAYERS };
+module.exports = { initState, applyAction, getPublicState, removePlayer, MIN_PLAYERS, MAX_PLAYERS };

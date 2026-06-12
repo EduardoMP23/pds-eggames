@@ -109,9 +109,46 @@ class GameService {
       return {};
     }
 
-    // ── Leave (back to lobby) ──────────────────────────────────────────────
+    // ── Leave ──────────────────────────────────────────────────────────────
     if (action.type === 'leave') {
       if (!['playing', 'finished'].includes(room.status)) return {};
+
+      // Jogos que exportam removePlayer suportam saída individual: só quem
+      // clicou sai da partida; a mesa continua para os demais.
+      if (typeof Game.removePlayer === 'function') {
+        let result = {};
+        if (room.gameState) result = Game.removePlayer(room.gameState, playerInfo.playerId) || {};
+        this._repo.leaveRoom(socketId);
+        this._bus.toSocket(socketId, 'game:left', {});
+
+        if (room.players.length === 0) {
+          // mesa vazia: sala volta ao lobby (cleanup do repositório cuida do resto)
+          this._clearBingoTimer(roomId);
+          this._clearReadingTimer(roomId);
+          room.status = 'lobby';
+          room.gameState = null;
+          return {};
+        }
+
+        // a remoção pode decidir a partida (ex.: Coup/Poker com 1 restante)
+        if (result.gameOver) {
+          room.players.forEach(p => { p.ready = false; });
+          room.status = 'finished';
+          this._bus.toRoom(roomId, 'game:over', {
+            winner:     result.winner,
+            winnerName: result.winnerName,
+            reason:     result.reason,
+            teamWin:    result.teamWin || false,
+          });
+        }
+
+        if (room.gameState) {
+          this._bus.broadcastGameState(room, playerId => Game.getPublicState(room.gameState, playerId, room.hostPlayerId));
+        }
+        return {};
+      }
+
+      // Comportamento padrão: sala inteira volta ao lobby
       this._clearBingoTimer(roomId);
       this._clearReadingTimer(roomId);
       room.status = 'lobby';

@@ -94,6 +94,10 @@ function applyAction(state, action, playerId) {
   return { events };
 }
 
+// Saída individual: no-op — o tabuleiro e as mãos ficam intactos para o
+// jogador restante. Existir aqui habilita o leave individual no GameService.
+function removePlayer(_state, _playerId) {}
+
 function getPublicState(state, forPlayerId) {
   const playerIndex = state.players.findIndex(p => p.playerId === forPlayerId);
   return {
@@ -112,4 +116,4 @@ function getPublicState(state, forPlayerId) {
   };
 }
 
-module.exports = { MIN_PLAYERS, MAX_PLAYERS, initState, applyAction, getPublicState };
+module.exports = { MIN_PLAYERS, MAX_PLAYERS, initState, applyAction, getPublicState, removePlayer };

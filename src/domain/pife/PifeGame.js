@@ -153,6 +153,13 @@ function applyAction(state, action, playerId) {
   return { error: 'Ação desconhecida' };
 }
 
+// Saída individual: devolve a mão ao baralho (embaralhada) e remove o jogador.
+function removePlayer(state, playerId) {
+  state.stock = shuffle([...state.stock, ...(state.hands[playerId] || [])]);
+  delete state.hands[playerId];
+  state.players = state.players.filter(p => p.playerId !== playerId);
+}
+
 function getPublicState(state, forPlayerId, hostPlayerId) {
   return {
     myPlayerId:            forPlayerId,
@@ -174,4 +181,4 @@ function getPublicState(state, forPlayerId, hostPlayerId) {
   };
 }
 
-module.exports = { initState, applyAction, getPublicState, MIN_PLAYERS, MAX_PLAYERS };
+module.exports = { initState, applyAction, getPublicState, removePlayer, MIN_PLAYERS, MAX_PLAYERS };

@@ -56,11 +56,13 @@
   <div class="pa-toast" id="paToast"></div>
 </div>`;
 
-    document.getElementById('paBackBtn').addEventListener('click', () => {
+    window.holdToConfirm(document.getElementById('paBackBtn'), () => {
       _sendAction({ type: 'leave' });
+      // fallback: se o servidor não responder com game:left, navega mesmo assim
+      setTimeout(() => { window.location.href = '/'; }, 1000);
     });
 
-    document.getElementById('paReiniciarBtn').addEventListener('click', () => {
+    window.holdToConfirm(document.getElementById('paReiniciarBtn'), () => {
       _sendAction({ type: 'reset' });
     });
 

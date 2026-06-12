@@ -9,6 +9,8 @@
 
   let _el, _myPlayerId, _sendAction, _lastState, _fitFn;
   let _raiseAmount = 0;
+  let _prevComm    = [];        // chaves das comunitárias já reveladas (flip)
+  let _prevBets    = new Map(); // playerId → totalBet anterior (animação de aposta)
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -19,6 +21,8 @@
     _myPlayerId  = myPlayerId;
     _raiseAmount = 0;
     _lastState   = null;
+    _prevComm    = [];
+    _prevBets    = new Map();
 
     _el.innerHTML = buildHTML();
     attachEvents();
@@ -151,6 +155,60 @@
     </div>`;
   }
 
+  // ── Animações ─────────────────────────────────────────────────────────────
+
+  // Flip 3D em duas fases: vira até 90° (verso), troca a face e desvira.
+  function flipReveal(el, card, delay) {
+    setTimeout(() => {
+      el.style.transition = 'transform .18s ease-in';
+      el.style.transform  = 'rotateY(90deg)';
+      setTimeout(() => {
+        applyCard(el, card);
+        el.style.transition = 'transform .18s ease-out';
+        el.style.transform  = 'rotateY(0deg)';
+        setTimeout(() => { el.style.transition = ''; el.style.transform = ''; }, 200);
+      }, 180);
+    }, delay);
+  }
+
+  function findSeatEl(playerId) {
+    return _el ? _el.querySelector(`.pk-seat[data-pid="${playerId}"]`) : null;
+  }
+
+  // Rótulo "+R$ X" que voa do assento do oponente até o pote.
+  function animateBet(playerId, amount) {
+    const inner = qs('#pk-inner');
+    const seat  = findSeatEl(playerId);
+    const pot   = qs('#pk-pot');
+    if (!inner || !seat || !pot) return;
+
+    const sx = seat.offsetLeft + seat.offsetWidth  / 2;
+    const sy = seat.offsetTop  + seat.offsetHeight / 2;
+    const px = pot.offsetLeft  + pot.offsetWidth   / 2;
+    const py = pot.offsetTop   + pot.offsetHeight  / 2;
+
+    const fly = document.createElement('div');
+    fly.className   = 'pk-bet-fly';
+    fly.textContent = `+R$ ${amount}`;
+    fly.style.left  = sx + 'px';
+    fly.style.top   = sy + 'px';
+    inner.appendChild(fly);
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fly.style.transform = `translate(calc(-50% + ${px - sx}px), calc(-50% + ${py - sy}px)) scale(.85)`;
+      fly.style.opacity   = '0';
+    }));
+    setTimeout(() => fly.remove(), 1000);
+
+    // pulso dourado no assento de quem apostou
+    const sprite = seat.querySelector('.pk-seat-sprite');
+    if (sprite) {
+      sprite.classList.remove('pk-bet-pulse'); void sprite.offsetWidth;
+      sprite.classList.add('pk-bet-pulse');
+      setTimeout(() => sprite.classList.remove('pk-bet-pulse'), 900);
+    }
+  }
+
   // ── Seat widget ───────────────────────────────────────────────────────────
 
   function seatHTML(p, isCurrentTurn) {
@@ -202,17 +260,38 @@
       const opp    = opponents[i];
       if (opp) {
         const isTurn   = state.players[state.currentPlayerIndex]?.playerId === opp.playerId;
-        seatEl.className = `pk-seat pk-s-${SEAT_KEYS[i]}`;
-        seatEl.innerHTML = seatHTML(opp, isTurn);
+        seatEl.className   = `pk-seat pk-s-${SEAT_KEYS[i]}`;
+        seatEl.dataset.pid = opp.playerId;
+        seatEl.innerHTML   = seatHTML(opp, isTurn);
       } else {
         seatEl.className = `pk-seat pk-s-${SEAT_KEYS[i]}`;
+        delete seatEl.dataset.pid;
         seatEl.innerHTML = '';
       }
     }
 
-    // ── Cartas comunitárias ────────────────────────────────────────────────
+    // ── Animação de aposta dos oponentes ──────────────────────────────────
+    state.players.forEach(p => {
+      const prev = _prevBets.get(p.playerId);
+      if (prev !== undefined && p.totalBet > prev && p.playerId !== _myPlayerId) {
+        animateBet(p.playerId, p.totalBet - prev);
+      }
+      _prevBets.set(p.playerId, p.totalBet);
+    });
+
+    // ── Cartas comunitárias (flip ao revelar) ──────────────────────────────
     for (let i = 0; i < 5; i++) {
-      applyCard(qs(`#pk-comm-${i}`), state.communityCards[i] || null);
+      const el   = qs(`#pk-comm-${i}`);
+      const card = state.communityCards[i] || null;
+      const key  = card ? card.rank + card.suit : null;
+      if (key === _prevComm[i]) continue;
+      if (card && !_prevComm[i]) {
+        // revelação: flip com leve escalonamento (flop vira em cascata)
+        flipReveal(el, card, (i - 2 > 0 ? 0 : i) * 120);
+      } else {
+        applyCard(el, card); // nova mão: volta ao verso sem animação
+      }
+      _prevComm[i] = key;
     }
 
     // ── Pote ──────────────────────────────────────────────────────────────
@@ -279,11 +358,13 @@
   // ── Eventos ───────────────────────────────────────────────────────────────
 
   function attachEvents() {
-    qs('#pk-back-btn').addEventListener('click', () => {
+    window.holdToConfirm(qs('#pk-back-btn'), () => {
       _sendAction?.({ type: 'leave' });
+      // fallback: se o servidor não responder com game:left, navega mesmo assim
+      setTimeout(() => { window.location.href = '/'; }, 1000);
     });
 
-    qs('#pk-restart-btn').addEventListener('click', () => {
+    window.holdToConfirm(qs('#pk-restart-btn'), () => {
       _sendAction?.({ type: 'reset' });
     });
 
@@ -353,6 +434,8 @@
   function onReset() {
     _raiseAmount = 0;
     _lastState   = null;
+    _prevComm    = [];
+    _prevBets    = new Map();
   }
 
   // ── Util ──────────────────────────────────────────────────────────────────

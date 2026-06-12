@@ -69,34 +69,16 @@
       </div>
     `;
 
-    document.getElementById('itoBackBtn')?.addEventListener('click', () => {
-      window.location.href = '/';
+    window.holdToConfirm(document.getElementById('itoBackBtn'), () => {
+      // saída individual: libera o número do jogador para as próximas rodadas
+      if (_sendAction) _sendAction({ type: 'leave' });
+      // fallback: se o servidor não responder com game:left, navega mesmo assim
+      setTimeout(() => { window.location.href = '/'; }, 1000);
     });
 
-    const resetBtn = document.getElementById('itoResetBtn');
-    if (resetBtn) {
-      let holdTimer = null;
-      let progressAnim = null;
-
-      const startHold = () => {
-        resetBtn.classList.add('ito-holding');
-        holdTimer = setTimeout(() => {
-          resetBtn.classList.remove('ito-holding');
-          _sendAction({ type: 'next-round' });
-        }, 2000);
-      };
-
-      const cancelHold = () => {
-        clearTimeout(holdTimer);
-        holdTimer = null;
-        resetBtn.classList.remove('ito-holding');
-      };
-
-      resetBtn.addEventListener('pointerdown', startHold);
-      resetBtn.addEventListener('pointerup', cancelHold);
-      resetBtn.addEventListener('pointercancel', cancelHold);
-      resetBtn.addEventListener('contextmenu', e => e.preventDefault());
-    }
+    window.holdToConfirm(document.getElementById('itoResetBtn'), () => {
+      _sendAction({ type: 'next-round' });
+    });
 
     // Revelar: flip 3D da carta
     let revealed = false;

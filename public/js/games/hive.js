@@ -282,34 +282,16 @@
         </div>
       </div>`;
 
-    document.getElementById('hiveBtnBack').onclick = () => {
+    window.holdToConfirm(document.getElementById('hiveBtnBack'), () => {
       if (sendAction) sendAction({ type: 'leave' });
-    };
+      // fallback: se o servidor não responder com game:left, navega mesmo assim
+      setTimeout(() => { window.location.href = '/'; }, 1000);
+    });
 
     if (isHostPlayer) {
-      const resetBtn = document.getElementById('hiveResetBtn');
-      let resetTimer = null;
-
-      const startReset = () => {
-        resetBtn.classList.add('holding');
-        resetTimer = setTimeout(() => {
-          resetTimer = null;
-          resetBtn.classList.remove('holding');
-          if (sendAction) sendAction({ type: 'reset' });
-        }, 2000);
-      };
-
-      const cancelReset = () => {
-        if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
-        resetBtn.classList.remove('holding');
-      };
-
-      resetBtn.addEventListener('mousedown',   startReset);
-      resetBtn.addEventListener('mouseup',     cancelReset);
-      resetBtn.addEventListener('mouseleave',  cancelReset);
-      resetBtn.addEventListener('touchstart',  e => { e.preventDefault(); startReset(); });
-      resetBtn.addEventListener('touchend',    cancelReset);
-      resetBtn.addEventListener('touchcancel', cancelReset);
+      window.holdToConfirm(document.getElementById('hiveResetBtn'), () => {
+        if (sendAction) sendAction({ type: 'reset' });
+      });
     }
     document.getElementById('hiveToggleBtn').addEventListener('click', () => {
       panelOpen = !panelOpen;

@@ -107,6 +107,20 @@ function applyAction(state, action, playerId) {
   return { error: 'Ação desconhecida' };
 }
 
+// Saída individual: remove o jogador ajustando o índice do leitor; o jogo
+// segue normal para os demais.
+function removePlayer(state, playerId) {
+  const idx = state.players.findIndex(p => p.playerId === playerId);
+  if (idx === -1) return;
+  state.players.splice(idx, 1);
+  if (idx < state.currentReaderIndex) state.currentReaderIndex--;
+  if (state.players.length > 0) {
+    state.currentReaderIndex %= state.players.length;
+  } else {
+    state.currentReaderIndex = 0;
+  }
+}
+
 function getPublicState(state, forPlayerId, hostPlayerId) {
   const isReader = state.players[state.currentReaderIndex]?.playerId === forPlayerId;
 
@@ -134,4 +148,4 @@ function getPublicState(state, forPlayerId, hostPlayerId) {
   };
 }
 
-module.exports = { initState, applyAction, getPublicState, MIN_PLAYERS, MAX_PLAYERS };
+module.exports = { initState, applyAction, getPublicState, removePlayer, MIN_PLAYERS, MAX_PLAYERS };

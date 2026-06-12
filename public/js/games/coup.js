@@ -21,7 +21,6 @@
   let _sendAction     = null;
   let _lastState      = null;
   let _longPressTimer = null;        // deck long press
-  let _resetPressTimer = null;       // reset button long press
   let _cardPressTimer = null;        // card hold timer
   let _cardPressIdx   = null;        // which card is being held
   let _longPressFired = false;       // whether current hold became a long press
@@ -47,7 +46,7 @@
         <!-- HEADER: back, reset (host only), help -->
         <div class="coup-header">
           <div class="coup-header-left">
-            <a href="/"><img src="/assets/coup/btn-voltar.png" class="coup-btn-icon" alt="Voltar"></a>
+            <img src="/assets/coup/btn-voltar.png" class="coup-btn-icon" id="coupBackBtn" alt="Voltar">
             <img src="/assets/coup/btn-reset.png" class="coup-btn-icon" id="coupResetBtn" alt="Reiniciar" style="display:none">
           </div>
           <div class="coup-header-right">
@@ -99,34 +98,19 @@
   // ── Interaction setup ─────────────────────────────────────────────────────────
 
   function setupHeaderButtons() {
-    // ── Reset: apenas host, requer segurar 700ms ───────────────────────────────
-    const resetBtn = document.getElementById('coupResetBtn');
-
-    resetBtn.addEventListener('contextmenu', e => e.preventDefault());
-
-    resetBtn.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      resetBtn.setPointerCapture(e.pointerId);
-      _resetPressTimer = setTimeout(() => {
-        _resetPressTimer = null;
-        _flippedCards.clear();
-        Object.keys(_flippedRoles).forEach(k => delete _flippedRoles[k]);
-        _sendAction && _sendAction({ type: 'reset' });
-        showToast('Jogo reiniciado');
-      }, 700);
+    // ── Voltar: saída individual — devolve cartas/moedas e sai da partida ─────
+    window.holdToConfirm(document.getElementById('coupBackBtn'), () => {
+      _sendAction && _sendAction({ type: 'leave' });
+      // fallback: se o servidor não responder com game:left, navega mesmo assim
+      setTimeout(() => { window.location.href = '/'; }, 1000);
     });
 
-    resetBtn.addEventListener('pointerup', e => {
-      e.preventDefault();
-      if (_resetPressTimer !== null) {
-        clearTimeout(_resetPressTimer);
-        _resetPressTimer = null;
-        showToast('Segure para reiniciar o jogo');
-      }
-    });
-
-    resetBtn.addEventListener('pointercancel', () => {
-      if (_resetPressTimer !== null) { clearTimeout(_resetPressTimer); _resetPressTimer = null; }
+    // ── Reset: apenas host, requer segurar 2s ──────────────────────────────────
+    window.holdToConfirm(document.getElementById('coupResetBtn'), () => {
+      _flippedCards.clear();
+      Object.keys(_flippedRoles).forEach(k => delete _flippedRoles[k]);
+      _sendAction && _sendAction({ type: 'reset' });
+      showToast('Jogo reiniciado');
     });
 
     // ── Ajuda: abre o manual oficial do Coup ──────────────────────────────────

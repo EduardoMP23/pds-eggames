@@ -46,11 +46,13 @@
       </div>
     `;
 
-    document.getElementById('bingoBtnBack').addEventListener('click', () => {
+    window.holdToConfirm(document.getElementById('bingoBtnBack'), () => {
       if (_sendAction) _sendAction({ type: 'leave' });
+      // fallback: se o servidor não responder com game:left, navega mesmo assim
+      setTimeout(() => { window.location.href = '/'; }, 1000);
     });
 
-    document.getElementById('bingoBtnReset').addEventListener('click', () => {
+    window.holdToConfirm(document.getElementById('bingoBtnReset'), () => {
       if (_sendAction) _sendAction({ type: 'reset' });
     });
 

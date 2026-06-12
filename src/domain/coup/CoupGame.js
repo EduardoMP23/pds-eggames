@@ -190,6 +190,23 @@ function applyAction(state, action, playerId) {
   }
 }
 
+// Saída individual: devolve cartas (influência + troca pendente) ao baralho,
+// moedas ao banco e remove o jogador. Pode disparar o aviso de vencedor se
+// sobrar apenas um jogador ativo.
+function removePlayer(state, playerId) {
+  const idx = state.players.findIndex(p => p.playerId === playerId);
+  if (idx === -1) return {};
+  const [player] = state.players.splice(idx, 1);
+
+  for (const card of player.influence) state.deck.push(card.role);
+  if (player.exchangeOptions) state.deck.push(...player.exchangeOptions);
+  state.deck = shuffle(state.deck);
+  state.bankCoins += player.coins;
+
+  if (state.status === 'finished' || state.players.length === 0) return {};
+  return checkWinner(state);
+}
+
 function getPublicState(state, forPlayerId, hostPlayerId) {
   const me = state.players.find(p => p.playerId === forPlayerId);
 
@@ -216,4 +233,4 @@ function getPublicState(state, forPlayerId, hostPlayerId) {
   };
 }
 
-module.exports = { initState, applyAction, getPublicState, MIN_PLAYERS, MAX_PLAYERS };
+module.exports = { initState, applyAction, getPublicState, removePlayer, MIN_PLAYERS, MAX_PLAYERS };

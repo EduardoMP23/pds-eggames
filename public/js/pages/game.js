@@ -1,3 +1,56 @@
+// ── Hold-to-confirm: segura o botão por 2s para a ação ocorrer ──────────────
+// Usado pelos módulos de jogo nos botões Voltar/Reiniciar (anti toque acidental).
+window.holdToConfirm = function (el, onConfirm, ms) {
+  if (!el) return;
+  ms = ms || 2000;
+  let timer = null;
+
+  const setHeld = (held) => {
+    el.classList.toggle('holding', held);
+    el.style.transition = 'transform .15s ease, filter .15s ease';
+    el.style.transform  = held ? 'scale(.85)' : '';
+    el.style.filter     = held ? 'brightness(1.4)' : '';
+  };
+
+  const showHint = () => {
+    const r = el.getBoundingClientRect();
+    const hint = document.createElement('div');
+    hint.textContent = 'Segure por 2s';
+    hint.style.cssText = `
+      position:fixed; left:${r.left + r.width / 2}px; top:${r.bottom + 8}px;
+      transform:translateX(-50%); background:rgba(0,0,0,.8); color:#fff;
+      font-size:12px; font-weight:600; font-family:sans-serif;
+      padding:5px 12px; border-radius:999px; white-space:nowrap;
+      z-index:99999; pointer-events:none; opacity:1; transition:opacity .3s ease .9s;
+    `;
+    document.body.appendChild(hint);
+    requestAnimationFrame(() => { hint.style.opacity = '0'; });
+    setTimeout(() => hint.remove(), 1300);
+  };
+
+  const cancel = (early) => {
+    if (timer === null) return;
+    clearTimeout(timer);
+    timer = null;
+    setHeld(false);
+    if (early) showHint();
+  };
+
+  el.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    setHeld(true);
+    timer = setTimeout(() => {
+      timer = null;
+      setHeld(false);
+      if (el.isConnected) onConfirm(); // botão destruído no meio do hold → cancela
+    }, ms);
+  });
+  el.addEventListener('pointerup',     () => cancel(true));
+  el.addEventListener('pointercancel', () => cancel(false));
+};
+
 (function () {
   const roomId       = window.location.pathname.split('/').pop();
   const myPlayerId   = sessionStorage.getItem('playerId');
@@ -63,6 +116,11 @@
 
   socket.on('game:back-to-lobby', () => {
     window.location.href = '/lobby/' + roomId;
+  });
+
+  // Saída individual (ex.: Uno): só este jogador deixa a partida
+  socket.on('game:left', () => {
+    window.location.href = '/';
   });
 
   function loadGame(gameId) {

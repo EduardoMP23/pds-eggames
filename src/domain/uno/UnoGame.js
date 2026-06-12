@@ -8,17 +8,20 @@ const VALUES = ['0','1','2','3','4','5','6','7','8','9','skip','reverse','draw-t
 
 function makeDeck() {
   const deck = [];
+  let uid = 0;
+  const add = (color, value) => deck.push({ id: 'c' + (++uid), color, value });
+
   for (const color of COLORS) {
-    deck.push({ color, value: '0' });
+    add(color, '0');
     for (let i = 1; i <= 12; i++) {
       const value = VALUES[i];
-      deck.push({ color, value });
-      deck.push({ color, value });
+      add(color, value);
+      add(color, value);
     }
   }
   for (let i = 0; i < 4; i++) {
-    deck.push({ color: 'wild', value: 'wild' });
-    deck.push({ color: 'wild', value: 'wild-draw-four' });
+    add('wild', 'wild');
+    add('wild', 'wild-draw-four');
   }
   return deck;
 }
@@ -45,11 +48,6 @@ function drawCard(state, playerIndex) {
   state.players[playerIndex].hand.push(state.deck.pop());
 }
 
-function nextIndex(state, from) {
-  const n = state.players.length;
-  return ((from + state.direction) % n + n) % n;
-}
-
 function initState(players) {
   const deck = makeDeck();
   shuffle(deck);
@@ -66,18 +64,18 @@ function initState(players) {
   } while (firstCard.color === 'wild');
 
   return {
-    players:            gamePlayers,
+    players:     gamePlayers,
     deck,
-    discardPile:        [firstCard],
-    currentPlayerIndex: 0,
-    direction:          1,
-    currentColor:       firstCard.color,
-    status:             'playing',
-    winner:             null,
-    winnerName:         null,
+    discardPile: [firstCard],
+    status:      'playing',
+    winner:      null,
+    winnerName:  null,
   };
 }
 
+// Mesa livre: sem turnos e sem validação de cor/valor. Qualquer jogador pode
+// jogar ou comprar a qualquer momento — a fiscalização é social (contagem de
+// cartas + animações visíveis a todos).
 function applyAction(state, action, playerId) {
   const playerIndex = state.players.findIndex(p => p.playerId === playerId);
   if (playerIndex === -1) return { error: 'Player not found' };
@@ -85,22 +83,20 @@ function applyAction(state, action, playerId) {
 
   switch (action.type) {
     case 'play-card': {
-      const { cardIndex } = action;
-      if (cardIndex < 0 || cardIndex >= player.hand.length) return { error: 'Invalid card index' };
+      const cardIndex = player.hand.findIndex(c => c.id === action.cardId);
+      if (cardIndex === -1) return { error: 'Carta não encontrada na sua mão' };
 
       const card = player.hand.splice(cardIndex, 1)[0];
       state.discardPile.push(card);
-
-      state.currentPlayerIndex = nextIndex(state, playerIndex);
 
       if (player.hand.length === 0) {
         state.status = 'finished';
         state.winner = playerId;
         state.winnerName = player.playerName;
-        return { gameOver: true, winner: playerId, winnerName: player.playerName };
+        return { gameOver: true, winner: playerId, winnerName: player.playerName, animCard: card };
       }
 
-      return {};
+      return { animCard: card };
     }
 
     case 'draw-card': {
@@ -113,12 +109,22 @@ function applyAction(state, action, playerId) {
   }
 }
 
+// Saída individual: devolve a mão ao baralho e remove o jogador da mesa.
+// A partida continua para os demais (mesa livre, sem mínimo para prosseguir).
+function removePlayer(state, playerId) {
+  const idx = state.players.findIndex(p => p.playerId === playerId);
+  if (idx === -1) return;
+  const [player] = state.players.splice(idx, 1);
+  state.deck.push(...player.hand);
+  shuffle(state.deck);
+}
+
 function getPublicState(state, forPlayerId, hostPlayerId) {
   const topCard = state.discardPile[state.discardPile.length - 1] || null;
 
   return {
-    myPlayerId:         forPlayerId,
-    hostPlayerId:       hostPlayerId ?? null,
+    myPlayerId:   forPlayerId,
+    hostPlayerId: hostPlayerId ?? null,
     players: state.players.map(p => {
       if (p.playerId === forPlayerId) {
         return { playerId: p.playerId, playerName: p.playerName, hand: p.hand, cardCount: p.hand.length };
@@ -126,14 +132,11 @@ function getPublicState(state, forPlayerId, hostPlayerId) {
       return { playerId: p.playerId, playerName: p.playerName, hand: null, cardCount: p.hand.length };
     }),
     topCard,
-    currentColor:       state.currentColor,
-    currentPlayerIndex: state.currentPlayerIndex,
-    direction:          state.direction,
-    deckCount:          state.deck.length,
-    status:             state.status,
-    winner:             state.winner,
-    winnerName:         state.winnerName,
+    deckCount:  state.deck.length,
+    status:     state.status,
+    winner:     state.winner,
+    winnerName: state.winnerName,
   };
 }
 
-module.exports = { initState, applyAction, getPublicState, MIN_PLAYERS, MAX_PLAYERS };
+module.exports = { initState, applyAction, getPublicState, removePlayer, MIN_PLAYERS, MAX_PLAYERS };

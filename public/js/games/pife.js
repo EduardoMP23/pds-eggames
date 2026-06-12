@@ -39,10 +39,12 @@
   <div class="pf-toast" id="pfToast"></div>
 </div>`;
 
-    document.getElementById('pfBackBtn').addEventListener('click', () => {
+    window.holdToConfirm(document.getElementById('pfBackBtn'), () => {
       _sendAction({ type: 'leave' });
+      // fallback: se o servidor não responder com game:left, navega mesmo assim
+      setTimeout(() => { window.location.href = '/'; }, 1000);
     });
-    document.getElementById('pfResetBtn').addEventListener('click', () => {
+    window.holdToConfirm(document.getElementById('pfResetBtn'), () => {
       _sendAction({ type: 'reset' });
     });
     document.getElementById('pfStockSlot').addEventListener('click', () => {

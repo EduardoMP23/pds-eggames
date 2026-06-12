@@ -25,6 +25,11 @@
  * removePlayer(socketId: string)
  *   → { roomId: string, playerId: string, removed: boolean, room: Room } | null
  *
+ * leaveRoom(socketId: string)
+ *   Intentional exit: removes the player from the roster permanently (no
+ *   reconnection grace period) and reassigns the host if needed.
+ *   → { roomId: string, playerId: string, room: Room } | null
+ *
  * reassignHost(roomId: string)
  *   → void
  *

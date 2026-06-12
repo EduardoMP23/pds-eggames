@@ -1,314 +1,446 @@
-/* ── Uno Game Layout ──────────────────────────────────────────────── */
+/* ── Uno — mesa livre (visual "Cartas à Mesa") ───────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Outfit:wght@500;600;700&display=swap');
 
 .uno-root {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: #000;
+  --bg-1: #221a4f;
+  --bg-2: #120d2e;
+  --felt-1: #2b2357;
+  --felt-2: #1a1440;
+  --rim: #4a3d8f;
+  --ink: #f3f1ff;
+  --ink-dim: rgba(243,241,255,.55);
+
+  --c-red: #ff5a5f;
+  --c-yellow: #ffc833;
+  --c-green: #3ecf6e;
+  --c-blue: #3fa1ff;
+  --c-wild: #23273a;
+
+  --cw: 92px;            /* tamanho da carta na mão (JS recalcula) */
+  --ch: 138px;
+  --pile-w: 84px;        /* tamanho das cartas nas pilhas (JS recalcula) */
+  --pile-h: 126px;
+
+  --r-card: 14px;
+  --shadow-card: 0 8px 18px rgba(0,0,0,.45);
+
+  position: fixed;
+  inset: 0;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  touch-action: none;
+  font-family: 'Outfit', system-ui, sans-serif;
+  color: var(--ink);
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  background:
+    radial-gradient(130% 100% at 50% 0%, var(--bg-1) 0%, var(--bg-2) 70%);
+}
+.uno-root *,
+.uno-root *::before,
+.uno-root *::after { box-sizing: border-box; }
+
+.uno-root::before { /* brilho ambiente atrás da mesa */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%,-50%);
+  width: min(90vw, 820px);
+  height: min(60vh, 520px);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(99,76,219,.28), transparent 70%);
+  pointer-events: none;
 }
 
-/* ── Top buttons ──────────────────────────────────────────────────── */
+/* ── Topo — voltar / reiniciar ───────────────────────────────────── */
 
-.uno-btn-back,
-.uno-btn-reset {
+.uno-root .topbar {
   position: absolute;
-  top: 12px;
+  top: max(12px, env(safe-area-inset-top));
+  left: 12px;
+  display: flex;
+  gap: 10px;
+  z-index: 600;
+}
+.uno-root .iconbtn {
   width: 52px;
   height: 52px;
-  background: none;
-  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.16);
+  color: var(--ink);
+  backdrop-filter: blur(6px);
+  transition: transform .12s ease, background .12s ease;
   padding: 0;
-  cursor: pointer;
-  z-index: 100;
 }
-.uno-btn-back   { left: 12px; }
-.uno-btn-reset  { left: 72px; width: 45px; }
-.uno-btn-back img,
-.uno-btn-reset img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
+.uno-root .iconbtn svg { width: 24px; height: 24px; }
+.uno-root .iconbtn:hover { background: rgba(255,255,255,.14); }
+.uno-root .iconbtn:active { transform: scale(.9); }
 
-/* Mobile portrait: 10px after the 12px border */
-@media (max-width: 767px) {
-  .uno-btn-back  { left: 22px; }
-  .uno-btn-reset { left: 82px; }
-}
+/* ── Painéis dos jogadores ───────────────────────────────────────── */
 
-/* ── Fundo (painel do jogo) ───────────────────────────────────────── */
-
-.uno-fundo {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: #919191;
-  border: 12px solid #262626;
-  border-radius: 0;
-  box-sizing: border-box;
-  overflow: visible;
-}
-
-@media (min-width: 768px) {
-  .uno-fundo {
-    width: 720px;
-    height: 420px;
-    border-radius: 20px;
-    overflow: hidden;
-  }
-}
-
-/* Aviso de landscape em mobile */
-@media screen and (pointer: coarse) and (orientation: landscape) and (max-width: 767px) {
-  .uno-root::before {
-    content: 'Gire o dispositivo para jogar';
-    position: fixed;
-    inset: 0;
-    background: #000;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: 600;
-    z-index: 9999;
-  }
-}
-
-/* ── Opponent badges ──────────────────────────────────────────────── */
-
-.uno-opponents {
+#unoOpponents {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 140px;
-  pointer-events: none;
-}
-
-.uno-opponent-badge {
-  position: absolute;
-  transform: translate(-50%, -50%);
-}
-
-.uno-badge-wrap {
-  position: relative;
-  width: 86px;
-  height: 88px;
-}
-
-.uno-badge-bg {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
-
-.uno-badge-name {
-  position: absolute;
-  top: 25%;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  white-space: nowrap;
-  max-width: 74px;
+  top: max(12px, env(safe-area-inset-top));
+  left: 84px;
+  right: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  z-index: 500;
+  flex-wrap: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-  pointer-events: none;
 }
-
-.uno-badge-count {
-  position: absolute;
-  top: 60%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #111;
-  font-size: 20px;
-  font-weight: 900;
-  line-height: 1;
-  pointer-events: none;
-}
-
-/* ── Table area ───────────────────────────────────────────────────── */
-
-.uno-table-area {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+.uno-root .panel {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 24px;
-}
-
-/* Zone highlight when a card is dragged over */
-.uno-table-area.zone-hot {
-  outline: 3px dashed rgba(255,255,255,.7);
-  outline-offset: 8px;
-  border-radius: 8px;
-}
-
-/* ── Cards (base) ─────────────────────────────────────────────────── */
-
-.uno-card {
-  position: absolute;
-  cursor: grab;
-  transform-origin: 50% 100%;
-}
-
-/* Inner div = the visual card surface (for lift animation) */
-.uno-card .inner {
-  width: 100%;
-  height: 100%;
-  border-radius: 10px;
+  gap: 9px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px;
+  padding: 6px 14px 6px 7px;
+  backdrop-filter: blur(6px);
   position: relative;
-  overflow: hidden;
-  box-shadow: 0 6px 14px rgba(0,0,0,.45);
-  transition: transform .25s cubic-bezier(.22,.9,.3,1),
-              box-shadow .25s ease;
+  min-width: 0;
 }
-
-/* Lift on hover (desktop) */
-.uno-card:not(.dragging):hover {
-  z-index: 1000 !important;
-}
-.uno-card:not(.dragging):hover .inner {
-  transform: translateY(-44px) scale(1.1) rotate(calc(var(--rot, 0) * -1deg));
-  box-shadow: 0 20px 40px rgba(0,0,0,.55);
-}
-
-/* Dragging state */
-.uno-card.dragging {
-  transition: none !important;
-  cursor: grabbing;
-  z-index: 10000 !important;
-}
-.uno-card.dragging .inner {
-  transform: scale(1.06);
-  box-shadow: 0 24px 48px rgba(0,0,0,.6);
-}
-
-/* Over discard zone */
-.uno-card.over-zone .inner {
-  box-shadow: 0 0 0 3px #fff, 0 24px 48px rgba(0,0,0,.6);
-}
-
-/* Card backgrounds */
-.uno-card-bg {
-  position: absolute;
-  inset: 0;
-  background-image: url('/assets/uno/Fundo carta.png');
-  background-size: cover;
-  background-position: center;
-}
-
-.uno-card-color-overlay {
-  position: absolute;
-  inset: 6px;
-  border-radius: 7px;
-  opacity: 0.88;
-}
-
-.uno-card[data-color="red"]    .uno-card-color-overlay { background: #d72b2b; }
-.uno-card[data-color="blue"]   .uno-card-color-overlay { background: #1a5dc8; }
-.uno-card[data-color="green"]  .uno-card-color-overlay { background: #1e8e3e; }
-.uno-card[data-color="yellow"] .uno-card-color-overlay { background: #d4a800; }
-.uno-card[data-color="wild"]   .uno-card-color-overlay {
-  background: conic-gradient(#d72b2b 0 25%, #1a5dc8 25% 50%, #1e8e3e 50% 75%, #d4a800 75%);
+.uno-root .panel .ava {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  inset: 12px;
-  opacity: 1;
-}
-
-.uno-card-value {
-  position: absolute;
-  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30px;
-  font-weight: 900;
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  font-size: 16px;
   color: #fff;
-  text-shadow: 0 1px 4px rgba(0,0,0,.6);
-  line-height: 1;
-  pointer-events: none;
+  flex: none;
 }
-
-.uno-card-value.small-icon { font-size: 18px; }
-
-.uno-card[data-value="wild-draw-four"] .uno-card-value { color: #000; }
-
-/* ── Draw pile (card back) ────────────────────────────────────────── */
-
-.uno-draw-pile {
-  cursor: pointer;
-  transition: transform .12s ease;
-}
-.uno-draw-pile:active { transform: scale(.95) !important; }
-
-.uno-card-back-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 10px;
-}
-
-/* ── Hand area ────────────────────────────────────────────────────── */
-
-.uno-hand-area {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 220px;
-  touch-action: none;
-  overflow: visible;
-}
-
-/* ── Color picker overlay ─────────────────────────────────────────── */
-
-.uno-color-picker {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,.75);
+.uno-root .panel .info {
   display: flex;
   flex-direction: column;
+  line-height: 1.05;
+  min-width: 0;
+}
+.uno-root .panel .nick {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+.uno-root .panel .cards {
+  font-size: 11.5px;
+  color: var(--ink-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.uno-root .panel .cards .mini {
+  width: 9px;
+  height: 13px;
+  border-radius: 2.5px;
+  background: #fff;
+  display: inline-block;
+  box-shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+.uno-root .panel .count {
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink);
+}
+.uno-root .panel .bump { animation: uno-bump .35s ease; }
+@keyframes uno-bump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+/* ── Mesa ────────────────────────────────────────────────────────── */
+
+#unoTable {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%,-50%);
+  width: min(78vw, 560px);
+  height: min(44vh, 330px);
+  min-width: 300px;
+  min-height: 200px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--rim), #352a6e);
+  padding: 10px;
+  box-shadow: 0 24px 50px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06);
+}
+#unoFelt {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  position: relative;
+  background: radial-gradient(120% 140% at 50% 35%, var(--felt-1) 0%, var(--felt-2) 75%);
+  box-shadow: inset 0 10px 28px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.05);
+}
+
+/* Pilhas */
+.uno-root .pile {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  width: var(--pile-w);
+  height: var(--pile-h);
+}
+#unoDrawPile { left: 38%; cursor: pointer; }
+#unoDrawPile:active { transform: translate(-50%,-50%) scale(.95); }
+#unoDiscardPile { left: 62%; }
+#unoDiscardPile .placeholder {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-card);
+  border: 2.5px dashed rgba(255,255,255,.3);
+}
+#unoDrawPile .stack { position: absolute; inset: 0; }
+#unoDrawPile .stack .layer {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-card);
+}
+#unoDrawPile .label {
+  position: absolute;
+  left: 50%;
+  bottom: -24px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+#unoDrawPile .label b {
+  color: var(--ink);
+  font-family: 'Baloo 2', cursive;
+  font-size: 13px;
+}
+
+/* ── Carta (estilo UNO genérico) ─────────────────────────────────── */
+
+.uno-root .card {
+  width: var(--cw);
+  height: var(--ch);
+  border-radius: var(--r-card);
+  position: relative;
+  box-shadow: var(--shadow-card);
+  background: #fff;
+  padding: 5px;
+}
+.uno-root .card .face {
+  width: 100%;
+  height: 100%;
+  border-radius: calc(var(--r-card) - 4px);
+  position: relative;
+  overflow: hidden;
+  display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  gap: 20px;
 }
-
-.uno-color-picker-title {
-  color: #fff;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.uno-color-picker-colors { display: flex; gap: 20px; }
-
-.uno-color-choice {
-  width: 64px;
-  height: 64px;
+.uno-root .card .face::before { /* elipse central inclinada */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150%;
+  height: 78%;
+  transform: translate(-50%,-50%) rotate(-32deg);
+  background: rgba(255,255,255,.92);
   border-radius: 50%;
-  border: 3px solid #fff;
-  cursor: pointer;
-  transition: transform .1s;
 }
-.uno-color-choice:active { transform: scale(.92); }
-.uno-color-choice[data-color="red"]    { background: #d72b2b; }
-.uno-color-choice[data-color="blue"]   { background: #1a5dc8; }
-.uno-color-choice[data-color="green"]  { background: #1e8e3e; }
-.uno-color-choice[data-color="yellow"] { background: #d4a800; }
+.uno-root .card .big {
+  position: relative;
+  z-index: 2;
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  font-size: calc(var(--cw) * .52);
+  line-height: 1;
+  -webkit-text-stroke: calc(var(--cw) * .025) rgba(0,0,0,.18);
+}
+.uno-root .card .corner {
+  position: absolute;
+  z-index: 2;
+  color: #fff;
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  font-size: calc(var(--cw) * .2);
+  line-height: 1;
+  text-shadow: 0 1.5px 0 rgba(0,0,0,.25);
+}
+.uno-root .card .corner.tl { top: 6px; left: 9px; }
+.uno-root .card .corner.br { bottom: 6px; right: 9px; transform: rotate(180deg); }
+
+.uno-root .card.red    .face { background: var(--c-red); }    .uno-root .card.red    .big { color: var(--c-red); }
+.uno-root .card.yellow .face { background: var(--c-yellow); } .uno-root .card.yellow .big { color: var(--c-yellow); }
+.uno-root .card.green  .face { background: var(--c-green); }  .uno-root .card.green  .big { color: var(--c-green); }
+.uno-root .card.blue   .face { background: var(--c-blue); }   .uno-root .card.blue   .big { color: var(--c-blue); }
+.uno-root .card.wild   .face { background:
+  conic-gradient(var(--c-red) 0 25%, var(--c-blue) 0 50%, var(--c-yellow) 0 75%, var(--c-green) 0 100%); }
+.uno-root .card.wild .face::before { background: rgba(20,22,34,.92); }
+.uno-root .card.wild .big { color: #fff; -webkit-text-stroke: 0; }
+
+/* Verso */
+.uno-root .card.back { padding: 5px; }
+.uno-root .card.back .face { background: #23273a; }
+.uno-root .card.back .face::before {
+  background: radial-gradient(closest-side, #ff5a5f 0 30%, transparent 31%),
+              rgba(255,255,255,.06);
+  width: 150%;
+  height: 78%;
+}
+.uno-root .card.back .logo {
+  position: relative;
+  z-index: 2;
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  color: #fff;
+  font-size: calc(var(--cw) * .26);
+  letter-spacing: .5px;
+  transform: rotate(-32deg);
+  text-shadow: 0 2px 0 rgba(0,0,0,.35);
+}
+
+/* ── Mão em arco ─────────────────────────────────────────────────── */
+
+#unoHandArea {
+  position: absolute;
+  inset: 0;
+  z-index: 540;
+  pointer-events: none;
+}
+.uno-root .hand-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: auto;
+  transform-origin: 50% 120%;
+  transition: transform .38s cubic-bezier(.22,.9,.3,1);
+  will-change: transform;
+  cursor: grab;
+}
+.uno-root .hand-card.dragging {
+  transition: none;
+  z-index: 10000 !important;
+  cursor: grabbing;
+}
+.uno-root .hand-card .wrap {
+  transition: transform .22s cubic-bezier(.22,.9,.3,1), filter .22s ease;
+}
+.uno-root .hand-card:not(.dragging):hover .wrap,
+.uno-root .hand-card.lift .wrap {
+  transform: translateY(-34px) scale(1.1);
+  filter: drop-shadow(0 18px 22px rgba(0,0,0,.5));
+}
+.uno-root .hand-card:not(.dragging):hover { z-index: 9000; }
+
+/* Carta selecionada (1º toque): sobe mais e mostra o botão Jogar */
+.uno-root .hand-card.selected { z-index: 9200 !important; }
+.uno-root .hand-card.selected:not(.dragging) .wrap {
+  transform: translateY(-52px) scale(1.16);
+  filter: drop-shadow(0 22px 26px rgba(0,0,0,.55));
+}
+.uno-root .hand-card .playtag {
+  position: absolute;
+  left: 50%;
+  top: -72px;
+  transform: translateX(-50%) scale(.6);
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffd45e, #ffb31f);
+  color: #3a2400;
+  font-family: 'Baloo 2', cursive;
+  font-weight: 800;
+  font-size: 15px;
+  padding: 7px 20px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 6px 14px rgba(0,0,0,.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s cubic-bezier(.34,1.5,.5,1);
+}
+.uno-root .hand-card.selected .playtag {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) scale(1);
+}
+
+/* Setas de navegação da mão (mobile / overflow) */
+.uno-root .handnav {
+  position: absolute;
+  bottom: calc(var(--ch) * .42);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 9500;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.22);
+  color: var(--ink);
+  font-size: 20px;
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: opacity .2s ease, transform .12s ease;
+}
+.uno-root .handnav:active { transform: scale(.88); }
+.uno-root .handnav.show { display: flex; }
+.uno-root .handnav.dim { opacity: .25; pointer-events: none; }
+#unoNavL { left: 8px; }
+#unoNavR { right: 8px; }
+
+/* Carta voadora (animações de compra/jogada) */
+.uno-root .fly {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 20000;
+  pointer-events: none;
+  transition: transform .55s cubic-bezier(.3,.7,.25,1), opacity .55s ease;
+}
+
+/* Toast de status (avisos) */
+#unoToast {
+  position: absolute;
+  left: 50%;
+  top: calc(44% + min(22vh, 165px) + 18px);
+  transform: translateX(-50%) translateY(6px);
+  background: rgba(0,0,0,.45);
+  border: 1px solid rgba(255,255,255,.15);
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity .3s ease, transform .3s ease;
+  pointer-events: none;
+  z-index: 550;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+#unoToast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uno-root *,
+  .uno-root *::before,
+  .uno-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

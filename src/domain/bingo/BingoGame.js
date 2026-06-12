@@ -70,6 +70,12 @@ function applyAction(state, action, playerId) {
   return { error: 'Ação desconhecida' };
 }
 
+// Saída individual: cancela a cartela do jogador; o sorteio continua.
+function removePlayer(state, playerId) {
+  delete state.cards[playerId];
+  state.players = state.players.filter(p => p.playerId !== playerId);
+}
+
 function getPublicState(state, forPlayerId, hostPlayerId) {
   return {
     myPlayerId:    forPlayerId,
@@ -86,4 +92,4 @@ function getPublicState(state, forPlayerId, hostPlayerId) {
   };
 }
 
-module.exports = { MIN_PLAYERS, MAX_PLAYERS, initState, applyAction, getPublicState };
+module.exports = { MIN_PLAYERS, MAX_PLAYERS, initState, applyAction, getPublicState, removePlayer };

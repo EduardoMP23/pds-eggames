@@ -273,6 +273,46 @@ class SQLiteRoomRepository {
     return { roomId, playerId, removed: false, room };
   }
 
+  /**
+   * Saída intencional: remove o jogador definitivamente do roster (sem grace
+   * period de reconexão) e reatribui o host se necessário.
+   */
+  leaveRoom(socketId) {
+    const info = this._players.get(socketId);
+    if (!info) return null;
+
+    const { roomId, playerId } = info;
+    this._players.delete(socketId);
+
+    const room = this._rooms.get(roomId);
+    if (!room) return null;
+
+    const player = room.players.find(p => p.playerId === playerId);
+    if (player && player._removeTimer) {
+      clearTimeout(player._removeTimer);
+      player._removeTimer = null;
+    }
+    room.players = room.players.filter(p => p.playerId !== playerId);
+
+    if (room.hostPlayerId === playerId) {
+      const next = room.players.find(p => p.connected);
+      if (next) room.hostPlayerId = next.playerId;
+    }
+
+    const connectedCount = room.players.filter(p => p.connected).length;
+    if (connectedCount === 0) {
+      room._cleanupTimer = setTimeout(() => {
+        const r = this._rooms.get(roomId);
+        if (r && r.players.filter(p => p.connected).length === 0) {
+          this._rooms.delete(roomId);
+          console.log(`[Room] ${roomId} deletada por inatividade.`);
+        }
+      }, 30_000);
+    }
+
+    return { roomId, playerId, room };
+  }
+
   reassignHost(roomId) {
     const room = this._rooms.get(roomId);
     if (!room) return;

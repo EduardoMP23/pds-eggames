@@ -107,7 +107,9 @@
   position: absolute;
   left: 378px; top: 418px;
   display: flex; gap: 16px;
+  perspective: 700px; /* profundidade do flip de revelação */
 }
+#pk-board .pk-card { backface-visibility: hidden; }
 
 /* ── Cards (base) ────────────────────────────────────────────────────────────── */
 .pk-card {
@@ -174,6 +176,35 @@
 .pk-s-l2 { left:   6px;  top: 470px; }
 .pk-s-r1 { left: 1044px; top: 285px; }
 .pk-s-r2 { left: 1044px; top: 470px; }
+
+/* ── Animação de aposta de oponente ─────────────────────────────────────────── */
+.pk-bet-fly {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,.75);
+  color: #f1c40f;
+  font-size: 22px;
+  font-weight: 800;
+  font-family: sans-serif;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(241,196,15,.6);
+  box-shadow: 0 4px 14px rgba(0,0,0,.45);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 1;
+  transition: transform .8s cubic-bezier(.3,.7,.3,1), opacity .3s ease .5s;
+}
+
+.pk-seat-sprite.pk-bet-pulse {
+  animation: pk-bet-pulse .8s ease;
+}
+@keyframes pk-bet-pulse {
+  0%   { filter: drop-shadow(0 0 0 rgba(241,196,15,0)); }
+  35%  { filter: drop-shadow(0 0 14px rgba(241,196,15,.95)); }
+  100% { filter: drop-shadow(0 0 0 rgba(241,196,15,0)); }
+}
 
 /* Estado do assento */
 .pk-seat.is-turn   .pk-seat-sprite { filter: drop-shadow(0 0 9px #ffe600); }

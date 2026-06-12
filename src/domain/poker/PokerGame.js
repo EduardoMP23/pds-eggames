@@ -392,6 +392,45 @@ function applyAction(state, action, playerId) {
   return {};
 }
 
+// Saída individual: trata como fold (se estava numa rodada de apostas),
+// remove o jogador do array e corrige os índices de dealer/vez. As fichas
+// dele saem do jogo; apostas já feitas permanecem no pote.
+function removePlayer(state, playerId) {
+  const idx = state.players.findIndex(p => p.playerId === playerId);
+  if (idx === -1) return {};
+  const player = state.players[idx];
+
+  if (state.status === 'playing' && state.phase !== 'showdown' && !player.folded && !player.eliminated) {
+    player.folded   = true;
+    player.hasActed = true;
+    if (state.currentPlayerIndex === idx) {
+      advanceTurn(state);
+    } else if (bettingComplete(state)) {
+      advancePhase(state);
+    }
+  }
+
+  state.players.splice(idx, 1);
+  const n = state.players.length;
+  if (n === 0) return {};
+
+  if (state.dealerIndex > idx) state.dealerIndex--;
+  state.dealerIndex %= n;
+  if (state.currentPlayerIndex > idx) state.currentPlayerIndex--;
+  state.currentPlayerIndex %= n;
+
+  if (state.status !== 'finished') checkGameOver(state);
+  if (state.status === 'finished' && state.winner) {
+    return {
+      gameOver:   true,
+      winner:     state.winner,
+      winnerName: state.winnerName,
+      reason:     `${state.winnerName} venceu o torneio!`,
+    };
+  }
+  return {};
+}
+
 function getPublicState(state, forPlayerId, hostPlayerId) {
   return {
     myPlayerId:          forPlayerId,
@@ -425,4 +464,4 @@ function getPublicState(state, forPlayerId, hostPlayerId) {
   };
 }
 
-module.exports = { MIN_PLAYERS, MAX_PLAYERS, initState, applyAction, getPublicState };
+module.exports = { MIN_PLAYERS, MAX_PLAYERS, initState, applyAction, getPublicState, removePlayer };
