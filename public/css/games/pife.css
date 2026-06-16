@@ -79,7 +79,8 @@
   position: absolute; top: 50%; transform: translate(-50%, -50%);
   width: var(--pf-cw, 84px); height: var(--pf-ch, 117px); border-radius: 10px;
 }
-#pfDiscardSlot { left: 68%; }
+#pfDiscardSlot { left: 68%; cursor: pointer; }
+#pfDiscardSlot:active { transform: translate(-50%, -50%) scale(.95); }
 #pfStockSlot   { left: 32%; border: 2px dashed rgba(255,255,255,.55); cursor: pointer; }
 #pfStockSlot:active { transform: translate(-50%, -50%) scale(.95); }
 #pfStockSlot.pf-disabled { cursor: default; opacity: 0.65; }

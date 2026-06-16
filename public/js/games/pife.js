@@ -11,6 +11,9 @@
   let _cw          = 84;
   let _ch          = 117;
   let _toastTimer  = null;
+  let _ro          = null;     // ResizeObserver: relayout quando o field ganha dimensões
+  let _drawDrag    = null;     // arraste de compra (monte → mão) em andamento
+  let _skipOwnDrawAnim = false; // pula a animação de voo da própria compra quando feita por arraste
 
   const FALLBACK_AVATARS = ['knight','wizard','ninja','robot','alien','cat','ghost','skull'];
   const FALLBACK_COLORS  = ['#ff2e88','#00f0ff','#39ff7a','#ffe600','#ff7a1f','#b14aed','#ff3860','#5effc1'];
@@ -47,15 +50,134 @@
     window.holdToConfirm(document.getElementById('pfResetBtn'), () => {
       _sendAction({ type: 'reset' });
     });
-    document.getElementById('pfStockSlot').addEventListener('click', () => {
+    attachPileDraw(document.getElementById('pfStockSlot'),   'stock');
+    attachPileDraw(document.getElementById('pfDiscardSlot'), 'discard');
+  }
+
+  // ── Comprar arrastando (monte → mão), escolhendo a posição ─────────────────
+  // Tap = compra rápida (carta vai pro fim). Arraste = compra posicionada.
+  function attachPileDraw(slotEl, source) {
+    if (!slotEl) return;
+    let sx = 0, sy = 0, pending = false, dragging = false;
+
+    slotEl.addEventListener('pointerdown', e => {
       if (!_lastState) return;
-      _sendAction({ type: 'draw-stock' });
+      pending = true; dragging = false;
+      sx = e.clientX; sy = e.clientY;
+      try { slotEl.setPointerCapture(e.pointerId); } catch (_) {}
     });
-    document.getElementById('pfDiscardSlot').addEventListener('click', () => {
-      if (!_lastState) return;
-      if (!_lastState.discardTop) { showToast('Descarte vazio'); return; }
-      _sendAction({ type: 'draw-discard' });
+
+    slotEl.addEventListener('pointermove', e => {
+      if (dragging) { updateDrawDrag(e); return; }
+      if (!pending) return;
+      if (Math.hypot(e.clientX - sx, e.clientY - sy) < 8) return;
+      if (_currentHand.length >= 10) { pending = false; showToast('Mão cheia — descarte antes de comprar'); return; }
+      if (source === 'discard' && !_lastState.discardTop) { pending = false; showToast('Descarte vazio'); return; }
+      pending = false; dragging = true;
+      startDrawDrag(source, e);
+      updateDrawDrag(e);
     });
+
+    const end = e => {
+      try { slotEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (dragging) {
+        dragging = false;
+        endDrawDrag();
+      } else if (pending) {
+        pending = false;
+        if (_currentHand.length >= 10) { showToast('Mão cheia — descarte antes de comprar'); return; }
+        if (source === 'stock') {
+          _sendAction({ type: 'draw-stock' });
+        } else {
+          if (!_lastState.discardTop) { showToast('Descarte vazio'); return; }
+          _sendAction({ type: 'draw-discard' });
+        }
+      }
+    };
+    slotEl.addEventListener('pointerup', end);
+    slotEl.addEventListener('pointercancel', end);
+  }
+
+  function startDrawDrag(source, e) {
+    const field = document.getElementById('pfField');
+    if (!field) return;
+    const el = document.createElement('div');
+    el.className = 'pf-card pf-hand-card pf-dragging';
+    let card = null, cardId = null;
+    if (source === 'discard') {
+      card   = _lastState.discardTop;
+      cardId = String(card.id);
+      el.innerHTML = cardFaceHTML(card);
+    } else {
+      el.innerHTML = '<div class="pf-inner"><div class="pf-back-face"></div></div>';
+    }
+    field.appendChild(el);
+    _drawDrag = { source, cardId, card, el, gapIndex: _currentHand.length, released: false };
+    _skipOwnDrawAnim = true;
+    _sendAction({ type: source === 'discard' ? 'draw-discard' : 'draw-stock' });
+  }
+
+  function updateDrawDrag(e) {
+    if (!_drawDrag) return;
+    const field = document.getElementById('pfField');
+    if (!field) return;
+    const f  = field.getBoundingClientRect();
+    const px = e.clientX - f.left, py = e.clientY - f.top;
+    _drawDrag.el.style.transform = `translate(${px - _cw / 2}px,${py - _ch / 2}px) rotate(0deg) scale(1.07)`;
+    const total = _currentHand.length + 1;
+    const slots = slotsFor(total);
+    let gi = total - 1;
+    for (let i = 0; i < total; i++) { if (px < slots[i].cx) { gi = i; break; } }
+    _drawDrag.gapIndex = gi;
+    let oi = 0;
+    for (let i = 0; i < total; i++) {
+      if (i === gi) continue;
+      const c = _currentHand[oi++]; if (!c) continue;
+      const el = _handEls[String(c.id)]; if (el) placeCard(el, slots[i]);
+    }
+  }
+
+  function endDrawDrag() {
+    if (!_drawDrag) return;
+    if (_drawDrag.card) finalizeDrawDrag();
+    else { _drawDrag.released = true; _drawDrag.releaseIndex = _drawDrag.gapIndex; }
+  }
+
+  function finalizeDrawDrag() {
+    const dd = _drawDrag;
+    if (!dd || !dd.card) return;
+    const sid = String(dd.card.id);
+    const idx = Math.max(0, Math.min(dd.gapIndex, _currentHand.length));
+    dd.el.className = 'pf-card pf-hand-card';
+    dd.el.dataset.id = sid;
+    dd.el.innerHTML = cardFaceHTML(dd.card);
+    _handEls[sid] = dd.el;
+    attachDrag(dd.card, dd.el);
+    _currentHand.splice(idx, 0, dd.card);
+    _drawDrag = null;
+    layoutHand();
+  }
+
+  // Chamada pelo sync quando a carta comprada chega do servidor.
+  function adoptDrawCard(card) {
+    _drawDrag.cardId = String(card.id);
+    _drawDrag.card   = card;
+    _drawDrag.el.innerHTML = cardFaceHTML(card);
+    if (_drawDrag.released) finalizeDrawDrag();
+  }
+
+  function drawDragAdopts(card) {
+    if (!_drawDrag) return false;
+    if (_drawDrag.source === 'discard') return String(card.id) === _drawDrag.cardId;
+    return _drawDrag.cardId === null; // stock: adota a primeira carta nova
+  }
+
+  function cancelDrawDrag() {
+    if (!_drawDrag) return;
+    if (_drawDrag.el) _drawDrag.el.remove();
+    _drawDrag = null;
+    _skipOwnDrawAnim = false;
+    layoutHand();
   }
 
   // ── Sizes ────────────────────────────────────────────────────────────────
@@ -107,6 +229,22 @@
   }
 
   function layoutHand() {
+    // Durante uma compra arrastada, deixa um espaço aberto no gapIndex (N+1 slots).
+    if (_drawDrag) {
+      const total = _currentHand.length + 1;
+      const slots = slotsFor(total);
+      const gi = Math.max(0, Math.min(_drawDrag.gapIndex, _currentHand.length));
+      let oi = 0;
+      for (let i = 0; i < total; i++) {
+        if (i === gi) continue;
+        const c = _currentHand[oi++]; if (!c) continue;
+        const el = _handEls[String(c.id)];
+        if (el && !el.classList.contains('pf-dragging')) placeCard(el, slots[i]);
+        if (el) el.style.zIndex = 200 + i;
+      }
+      updateTray(slots);
+      return;
+    }
     if (!_currentHand.length) { updateTray([]); return; }
     const slots = slotsFor(_currentHand.length);
     _currentHand.forEach((c, i) => {
@@ -197,7 +335,12 @@
       try { el.releasePointerCapture(e.pointerId); } catch (_) {}
 
       if (mode === 'discard') {
-        _sendAction({ type: 'discard', cardId: card.id });
+        if (_currentHand.length < 10) {
+          showToast('Compre uma carta antes de descartar');
+          layoutHand();
+        } else {
+          _sendAction({ type: 'discard', cardId: card.id });
+        }
       } else {
         const others = _currentHand.filter(c => c.id !== card.id);
         others.splice(gapIndex, 0, card);
@@ -210,6 +353,8 @@
   }
 
   // ── Sync hand elements ───────────────────────────────────────────────────
+  // Mantém a ORDEM LOCAL da mão (o servidor só conhece o conjunto de cartas):
+  // remove as que saíram e adiciona as novas no fim — sem resetar a ordem.
   function syncHandElements(state) {
     const myHand    = state.myHand || [];
     const myHandIds = new Set(myHand.map(c => String(c.id)));
@@ -218,30 +363,37 @@
     for (const id of Object.keys(_handEls)) {
       if (!myHandIds.has(id)) { _handEls[id].remove(); delete _handEls[id]; }
     }
+    // Mantém ordem local; descarta da ordem as cartas que saíram
+    _currentHand = _currentHand.filter(c => myHandIds.has(String(c.id)));
+    const have = new Set(_currentHand.map(c => String(c.id)));
 
     const field = document.getElementById('pfField');
 
-    // Add elements for new cards, animate entry from table centre
     for (const card of myHand) {
       const sid = String(card.id);
-      if (!_handEls[sid]) {
-        const el = document.createElement('div');
-        el.className = 'pf-card pf-hand-card';
-        el.dataset.id = sid;
-        el.innerHTML = cardFaceHTML(card);
-        field.appendChild(el);
-        _handEls[sid] = el;
-        attachDrag(card, el);
+      if (have.has(sid)) continue;
 
-        // Start from table centre, transitions to hand position
-        const fx = field.clientWidth / 2, fy = field.clientHeight * 0.48;
-        el.style.transition = 'none';
-        el.style.transform  = `translate(${fx - _cw / 2}px,${fy - _ch / 2}px) scale(0.8)`;
-        requestAnimationFrame(() => { el.style.transition = ''; });
-      }
+      // Carta nova controlada por uma compra arrastada: não posiciona aqui
+      if (drawDragAdopts(card)) { adoptDrawCard(card); continue; }
+
+      // Carta nova normal: cria elemento e adiciona no fim da ordem local
+      const el = document.createElement('div');
+      el.className = 'pf-card pf-hand-card';
+      el.dataset.id = sid;
+      el.innerHTML = cardFaceHTML(card);
+      field.appendChild(el);
+      _handEls[sid] = el;
+      attachDrag(card, el);
+
+      // Start from table centre, transitions to hand position
+      const fx = field.clientWidth / 2, fy = field.clientHeight * 0.48;
+      el.style.transition = 'none';
+      el.style.transform  = `translate(${fx - _cw / 2}px,${fy - _ch / 2}px) scale(0.8)`;
+      requestAnimationFrame(() => { el.style.transition = ''; });
+
+      _currentHand.push(card);
+      have.add(sid);
     }
-
-    _currentHand = myHand;
   }
 
   // ── Render avatars ───────────────────────────────────────────────────────
@@ -379,6 +531,14 @@
       _isHost = isHost;
       buildDOM(container);
       computeSizes();
+      // Re-layout quando o container ganha dimensões (ex.: o CSS do jogo carrega
+      // depois do primeiro render), evitando a mão presa no centro da tela.
+      if (_ro) _ro.disconnect();
+      const field = document.getElementById('pfField');
+      if (field && 'ResizeObserver' in window) {
+        _ro = new ResizeObserver(() => { computeSizes(); layoutHand(); });
+        _ro.observe(field);
+      }
       window.addEventListener('resize', () => { computeSizes(); layoutHand(); });
       window.addEventListener('orientationchange', () => setTimeout(() => { computeSizes(); layoutHand(); }, 200));
     },
@@ -388,6 +548,9 @@
     },
 
     onReset() {
+      if (_drawDrag && _drawDrag.el) _drawDrag.el.remove();
+      _drawDrag    = null;
+      _skipOwnDrawAnim = false;
       for (const el of Object.values(_handEls)) el.remove();
       _handEls     = {};
       _currentHand = [];
@@ -395,6 +558,7 @@
     },
 
     onError(message) {
+      cancelDrawDrag();
       showToast(message);
     },
 
@@ -402,6 +566,13 @@
       const stockEl   = document.getElementById('pfStockSlot');
       const discardEl = document.getElementById('pfDiscardSlot');
       if (!stockEl || !discardEl) return;
+
+      // Compra própria feita por arraste: a carta já é controlada pelo gesto.
+      if ((data.type === 'draw-stock' || data.type === 'draw-discard') &&
+          data.playerId === _myId && _skipOwnDrawAnim) {
+        _skipOwnDrawAnim = false;
+        return;
+      }
 
       if (data.type === 'draw-stock') {
         const toRect = data.playerId === _myId ? myHandRect() : avatarRect(data.playerId);

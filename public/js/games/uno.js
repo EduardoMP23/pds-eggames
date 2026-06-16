@@ -3,6 +3,7 @@
 
   // ── Module state ────────────────────────────────────────────────────────────
   let _root, _handArea, _oppEl, _drawPile, _discardPile, _navL, _navR, _toastEl;
+  let _ro = null;     // ResizeObserver: relayout quando o root ganha dimensões
   let _myPlayerId, _isHost, _sendAction;
   let _state = null;
 
@@ -11,6 +12,8 @@
   let cardW = 92, cardH = 138, pileW = 84, pileH = 126;
   let panX = 0, maxPan = 0;     // navegação da mão quando transborda
   let selectedCard = null;
+  let _drawDrag = null;         // arraste de compra (monte → mão) em andamento
+  let _pendingTake = null;      // carta tirada do descarte de forma otimista (aguarda confirmação)
 
   let _topKey            = null;  // id da última carta renderizada no descarte
   let _pendingDiscardId  = null;  // carta em voo para o descarte (não re-renderizar)
@@ -111,6 +114,7 @@
     if (!card) return;
     const d = document.createElement('div');
     d.className = 'dcard';
+    d.dataset.id = card.id || '';
     d.style.position = 'absolute';
     d.style.inset = '0';
     d.style.transform = `rotate(${(Math.random() * 36 - 18).toFixed(1)}deg)`;
@@ -183,6 +187,21 @@
   }
 
   function layoutHand() {
+    // Durante uma compra arrastada, deixa um espaço aberto no gapIndex (N+1 slots).
+    if (_drawDrag) {
+      const total = hand.length + 1;
+      const slots = arcSlots(total);
+      const gi = Math.max(0, Math.min(_drawDrag.gapIndex, hand.length));
+      let oi = 0;
+      for (let i = 0; i < total; i++) {
+        if (i === gi) continue;
+        const c = hand[oi++]; if (!c) continue;
+        c.el.style.zIndex = 300 + i;
+        if (!c.dragging) placeHandCard(c, slots[i]);
+      }
+      updateNav();
+      return;
+    }
     const n = hand.length;
     const slots = arcSlots(n);
     hand.forEach((c, i) => {
@@ -342,6 +361,155 @@
     }));
   }
 
+  /* ---------- pegar do descarte: anima descarte → mão ---------- */
+  function takeTopDiscardToHand() {
+    if (!_state || !_state.topCard) return;
+    const dc = _state.discardCount;
+    if (typeof dc === 'number' && dc <= 1) { toast('Só dá pra pegar cartas jogadas'); return; }
+    const card = { ..._state.topCard };
+    const disc = rectIn(_discardPile);
+    // remove o topo visual e revela a carta de baixo
+    const dcards = _discardPile.querySelectorAll('.dcard');
+    if (dcards.length) dcards[dcards.length - 1].remove();
+    const newTop = _discardPile.querySelector('.dcard:last-child');
+    _topKey = newTop ? newTop.dataset.id : null;
+    // adiciona à mão voando do descarte para o leque
+    buildHandCard(card);
+    hand.push(card);
+    _pendingTake = { card };
+    card.el.style.transition = 'none';
+    card.el.style.transform = `translate(${disc.x}px,${disc.y}px) rotate(0deg) scale(.92)`;
+    requestAnimationFrame(() => requestAnimationFrame(() => { card.el.style.transition = ''; layoutHand(); }));
+    if (_sendAction) _sendAction({ type: 'draw-discard' });
+  }
+
+  /* ---------- comprar arrastando (monte → mão), escolhendo a posição ----------
+     Tap = compra rápida (carta vai pro fim). Arraste = compra posicionada. */
+  function attachPileDraw(pileEl, source) {
+    if (!pileEl) return;
+    let sx = 0, sy = 0, pending = false, dragging = false;
+
+    pileEl.addEventListener('pointerdown', e => {
+      pending = true; dragging = false;
+      sx = e.clientX; sy = e.clientY;
+      try { pileEl.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+
+    pileEl.addEventListener('pointermove', e => {
+      if (dragging) { updateDrawDrag(e); return; }
+      if (!pending) return;
+      if (Math.hypot(e.clientX - sx, e.clientY - sy) < 8) return;
+      if (source === 'discard' && (!_state || !_state.topCard ||
+          (typeof _state.discardCount === 'number' && _state.discardCount <= 1))) { pending = false; return; }
+      pending = false; dragging = true;
+      startDrawDrag(source, e);
+      updateDrawDrag(e);
+    });
+
+    const end = e => {
+      try { pileEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (dragging) { dragging = false; endDrawDrag(); }
+      else if (pending) {
+        pending = false;
+        if (source === 'stock') { if (_sendAction) _sendAction({ type: 'draw-card' }); }
+        else takeTopDiscardToHand();
+      }
+    };
+    pileEl.addEventListener('pointerup', end);
+    pileEl.addEventListener('pointercancel', end);
+  }
+
+  function startDrawDrag(source, e) {
+    const el = document.createElement('div');
+    el.className = 'hand-card dragging';
+    el.style.zIndex = 9999;
+    let card = null, cardId = null;
+    if (source === 'discard') {
+      card = { ..._state.topCard };
+      cardId = card.id;
+      el.innerHTML = `<div class="wrap">${cardHTML(card)}</div>`;
+      // remove o topo visual e revela a carta de baixo (otimista)
+      const dcards = _discardPile.querySelectorAll('.dcard');
+      if (dcards.length) dcards[dcards.length - 1].remove();
+      const newTop = _discardPile.querySelector('.dcard:last-child');
+      _topKey = newTop ? newTop.dataset.id : null;
+    } else {
+      el.innerHTML = `<div class="wrap">${backHTML()}</div>`;
+    }
+    _handArea.appendChild(el);
+    _drawDrag = { source, cardId, card, el, gapIndex: hand.length, released: false };
+    if (_sendAction) _sendAction({ type: source === 'discard' ? 'draw-discard' : 'draw-card' });
+  }
+
+  function updateDrawDrag(e) {
+    if (!_drawDrag) return;
+    const a = _root.getBoundingClientRect();
+    const px = e.clientX - a.left, py = e.clientY - a.top;
+    _drawDrag.el.style.transform = `translate(${px - cardW / 2}px,${py - cardH / 2}px) rotate(0deg) scale(1.08)`;
+    const total = hand.length + 1;
+    const slots = arcSlots(total);
+    let gi = total - 1;
+    for (let i = 0; i < total; i++) { if (px < slots[i].cx) { gi = i; break; } }
+    _drawDrag.gapIndex = gi;
+    let oi = 0;
+    for (let i = 0; i < total; i++) {
+      if (i === gi) continue;
+      const c = hand[oi++]; if (c && !c.dragging) placeHandCard(c, slots[i]);
+    }
+  }
+
+  function endDrawDrag() {
+    if (!_drawDrag) return;
+    if (_drawDrag.card) finalizeDrawDrag();
+    else { _drawDrag.released = true; _drawDrag.releaseIndex = _drawDrag.gapIndex; }
+  }
+
+  function finalizeDrawDrag() {
+    const dd = _drawDrag;
+    if (!dd || !dd.card) return;
+    const idx = Math.max(0, Math.min(dd.gapIndex, hand.length));
+    const card = dd.card;
+    buildHandCard(card);
+    if (dd.el) {
+      card.el.style.transition = 'none';
+      card.el.style.transform = dd.el.style.transform || '';
+      dd.el.remove();
+    }
+    hand.splice(idx, 0, card);
+    // descarte é otimista (carta tirada antes da confirmação do servidor)
+    if (dd.source === 'discard') _pendingTake = { card };
+    _drawDrag = null;
+    requestAnimationFrame(() => requestAnimationFrame(() => { card.el.style.transition = ''; layoutHand(); }));
+  }
+
+  // Desfaz a compra do descarte caso o servidor recuse (ex.: carta inicial).
+  function rollbackPendingTake() {
+    if (!_pendingTake) return;
+    const card = _pendingTake.card; _pendingTake = null;
+    const i = hand.findIndex(c => c.id === card.id);
+    if (i !== -1) { if (hand[i].el) hand[i].el.remove(); hand.splice(i, 1); }
+    renderDiscard(card);   // restaura o topo do descarte removido otimisticamente
+    layoutHand();
+  }
+
+  // Chamada pelo sync quando a carta comprada chega do servidor.
+  function adoptDrawCard(card) {
+    _drawDrag.cardId = card.id;
+    _drawDrag.card   = { ...card };
+    _drawDrag.el.innerHTML = `<div class="wrap">${cardHTML(card)}</div>`;
+    if (_drawDrag.released) finalizeDrawDrag();
+  }
+
+  function cancelDrawDrag() {
+    if (!_drawDrag) return;
+    const wasDiscard = _drawDrag.source === 'discard';
+    if (_drawDrag.el) _drawDrag.el.remove();
+    _drawDrag = null;
+    // descarte: a compra foi recusada — restaura o topo removido otimisticamente
+    if (wasDiscard && _state && _state.topCard) renderDiscard(_state.topCard);
+    layoutHand();
+  }
+
   /* ---------- animações dos oponentes ---------- */
   function opponentDraw(pid) {
     const p = panelOf(pid); if (!p) return;
@@ -349,6 +517,15 @@
     flyCard({
       html: backHTML(), from: { x: draw.x, y: draw.y },
       to: { x: t.cx - pileW * .3, y: t.cy - pileH * .3 }, scaleFrom: 1, scaleTo: .42, rot: 10, dur: 480,
+    });
+  }
+
+  function opponentTakeDiscard(pid, card) {
+    const p = panelOf(pid); if (!p || !card) return;
+    const disc = rectIn(_discardPile), t = rectIn(p);
+    flyCard({
+      html: cardHTML(card), from: { x: disc.x, y: disc.y },
+      to: { x: t.cx - pileW * .3, y: t.cy - pileH * .3 }, scaleFrom: 1, scaleTo: .42, rot: -10, dur: 480,
     });
   }
 
@@ -382,11 +559,23 @@
     const serverIds = new Set(serverHand.map(c => c.id));
     const localIds  = new Set(hand.map(c => c.id));
 
+    // compra do descarte confirmada pelo servidor → não está mais pendente
+    if (_pendingTake && serverIds.has(_pendingTake.card.id)) _pendingTake = null;
+
     // remove cartas que saíram da mão (jogada já animada localmente)
     hand.filter(c => !serverIds.has(c.id)).forEach(c => { c.el && c.el.remove(); deselectCard(); });
     hand = hand.filter(c => serverIds.has(c.id));
 
-    const news = serverHand.filter(c => !localIds.has(c.id));
+    let news = serverHand.filter(c => !localIds.has(c.id));
+
+    // Compra arrastada: a carta comprada é controlada pelo gesto, não entra aqui.
+    if (_drawDrag) {
+      let adopt = null;
+      if (_drawDrag.source === 'discard') adopt = news.find(c => c.id === _drawDrag.cardId);
+      else if (_drawDrag.cardId === null && news.length) adopt = news[0];
+      if (adopt) { adoptDrawCard(adopt); news = news.filter(c => c.id !== adopt.id); }
+    }
+
     if (hand.length === 0 && news.length > 1) {
       // mão inicial / reconexão: monta sem animação
       hand = news.map(c => ({ ...c }));
@@ -459,9 +648,8 @@
     _navL.addEventListener('click', () => { panX = Math.min(maxPan, panX + cardW * 2.4); layoutHand(); });
     _navR.addEventListener('click', () => { panX = Math.max(-maxPan, panX - cardW * 2.4); layoutHand(); });
 
-    _drawPile.addEventListener('click', () => {
-      if (_sendAction) _sendAction({ type: 'draw-card' });
-    });
+    attachPileDraw(_drawPile,    'stock');
+    attachPileDraw(_discardPile, 'discard');
 
     // toque fora de qualquer carta cancela a seleção
     _root.addEventListener('pointerdown', e => {
@@ -471,6 +659,14 @@
     window.removeEventListener('resize', _onResize);
     window.addEventListener('resize', _onResize);
     window.addEventListener('orientationchange', () => setTimeout(_onResize, 200));
+
+    // Re-layout quando o container ganha dimensões (ex.: o CSS do jogo carrega
+    // depois do primeiro render), evitando a mão presa no centro da tela.
+    if (_ro) _ro.disconnect();
+    if ('ResizeObserver' in window) {
+      _ro = new ResizeObserver(_onResize);
+      _ro.observe(_root);
+    }
 
     computeSizes();
     renderDraw();
@@ -501,11 +697,19 @@
     if (_discardSyncTimer) { clearTimeout(_discardSyncTimer); _discardSyncTimer = null; }
     const top = state.topCard;
     if (top && top.id !== _topKey && top.id !== _pendingDiscardId) {
-      const expectedId = top.id;
-      _discardSyncTimer = setTimeout(() => {
-        _discardSyncTimer = null;
-        if (expectedId !== _topKey && expectedId !== _pendingDiscardId) renderDiscard(top);
-      }, 150);
+      const dcards = _discardPile.querySelectorAll('.dcard');
+      const prev = dcards[dcards.length - 2];
+      if (prev && prev.dataset.id === top.id) {
+        // carta foi devolvida do descarte: remove o topo e revela a anterior
+        dcards[dcards.length - 1].remove();
+        _topKey = top.id;
+      } else {
+        const expectedId = top.id;
+        _discardSyncTimer = setTimeout(() => {
+          _discardSyncTimer = null;
+          if (expectedId !== _topKey && expectedId !== _pendingDiscardId) renderDiscard(top);
+        }, 150);
+      }
     }
 
     const me = state.players.find(p => p.playerId === _myPlayerId);
@@ -517,14 +721,20 @@
     if (playerId === _myPlayerId) return; // ações próprias já animadas localmente
     if (type === 'play-card') opponentPlay(playerId, card);
     else if (type === 'draw-card') opponentDraw(playerId);
+    else if (type === 'draw-discard') opponentTakeDiscard(playerId, card);
   }
 
   function onError(message) {
+    cancelDrawDrag();
+    rollbackPendingTake();
     toast(message);
   }
 
   function onReset() {
     if (_discardSyncTimer) { clearTimeout(_discardSyncTimer); _discardSyncTimer = null; }
+    if (_drawDrag && _drawDrag.el) _drawDrag.el.remove();
+    _drawDrag = null;
+    _pendingTake = null;
     hand.forEach(c => c.el && c.el.remove());
     hand = [];
     selectedCard = null;

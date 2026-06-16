@@ -199,7 +199,8 @@
 }
 #unoDrawPile { left: 38%; cursor: pointer; }
 #unoDrawPile:active { transform: translate(-50%,-50%) scale(.95); }
-#unoDiscardPile { left: 62%; }
+#unoDiscardPile { left: 62%; cursor: pointer; }
+#unoDiscardPile:active { transform: translate(-50%,-50%) scale(.95); }
 #unoDiscardPile .placeholder {
   position: absolute;
   inset: 0;

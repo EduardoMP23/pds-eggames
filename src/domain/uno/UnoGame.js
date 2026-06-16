@@ -104,6 +104,15 @@ function applyAction(state, action, playerId) {
       return {};
     }
 
+    case 'draw-discard': {
+      // Mesa livre: devolve a carta do topo do descarte para a mão (ex.: desfazer
+      // jogada errada). Mantém ao menos 1 carta no descarte para sempre haver topo.
+      if (state.discardPile.length <= 1) return { error: 'Descarte não pode ficar vazio' };
+      const card = state.discardPile.pop();
+      player.hand.push(card);
+      return { animCard: card };
+    }
+
     default:
       return { error: 'Unknown action' };
   }
@@ -132,7 +141,8 @@ function getPublicState(state, forPlayerId, hostPlayerId) {
       return { playerId: p.playerId, playerName: p.playerName, hand: null, cardCount: p.hand.length };
     }),
     topCard,
-    deckCount:  state.deck.length,
+    deckCount:    state.deck.length,
+    discardCount: state.discardPile.length,
     status:     state.status,
     winner:     state.winner,
     winnerName: state.winnerName,

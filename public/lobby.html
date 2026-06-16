@@ -188,6 +188,7 @@
 
     const socketRef = useRef(null);
     const chatRef   = useRef(null);
+    const chatOpenRef = useRef(false);
 
     const [players,  setPlayers]  = useState([]);
     const [messages, setMessages] = useState([]);
@@ -217,6 +218,8 @@
     const [gameData, setGameData] = useState(null);
     const [showInvite, setShowInvite] = useState(false);
     const [hostId,   setHostId]   = useState(null);
+    const [chatOpen, setChatOpen] = useState(false);
+    const [unread,   setUnread]   = useState(0);
 
     useEffect(() => {
       if (!myName) {
@@ -278,6 +281,7 @@
 
       socket.on('chat:message', data => {
         setMessages(m => [...m, { kind: 'chat', author: data.playerName, text: data.text }]);
+        if (!chatOpenRef.current) setUnread(u => u + 1);
       });
 
       socket.on('lobby:ready-update', data => {
@@ -290,6 +294,11 @@
     useEffect(() => {
       if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }, [messages]);
+
+    useEffect(() => {
+      chatOpenRef.current = chatOpen;
+      if (chatOpen) setUnread(0);
+    }, [chatOpen]);
 
     const sendMessage = (text) => {
       const t = (text !== undefined ? text : draft).trim();
@@ -354,7 +363,7 @@
           {/* Header: game info + room code */}
           <div style={{ display:'flex', gap:16, alignItems:'stretch', flexWrap:'wrap' }}>
             {game && (
-              <div className={`px-frame ${game.frameClass}`} style={{ padding:'14px 18px', display:'flex', alignItems:'center', gap:16, flex:'1 1 auto', minWidth:220 }}>
+              <div className={`px-frame ${game.frameClass} game-info-box`} style={{ padding:'14px 18px', display:'flex', alignItems:'center', gap:16, flex:'1 1 auto', minWidth:220 }}>
                 <div>
                   <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)', letterSpacing:'0.1em' }}>JOGO SELECIONADO</div>
                   <div style={{ fontFamily:"'Press Start 2P'", fontSize:18, color:game.accent, textShadow:`0 0 10px ${game.accent}`, marginTop:6 }}>{game.title}</div>
@@ -364,22 +373,28 @@
                 </div>
               </div>
             )}
-            <div className="px-frame px-frame--cyan" style={{ padding:'14px 18px', display:'flex', flexDirection:'column', gap:8, flex:'0 0 auto' }}>
-              <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)' }}>SALA</div>
-              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <div style={{ fontFamily:"'Press Start 2P'", fontSize:14, color:'var(--neon-cyan)', textShadow:'0 0 8px var(--neon-cyan)' }}>#{roomId}</div>
-                <button className="btn-px btn-px--cyan btn-px--sm" onClick={copyLink}>
-                  📋 CONVIDAR
-                </button>
+            <div className="room-row" style={{ display:'flex', gap:12, alignItems:'stretch', flex:'0 1 auto', minWidth:0 }}>
+              <div className="px-frame px-frame--cyan sala-box" style={{ padding:'14px 18px', display:'flex', flexDirection:'column', gap:8, flex:'0 1 auto', minWidth:0 }}>
+                <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)' }}>SALA</div>
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ fontFamily:"'Press Start 2P'", fontSize:14, color:'var(--neon-cyan)', textShadow:'0 0 8px var(--neon-cyan)' }}>#{roomId}</div>
+                  <button className="btn-px btn-px--cyan btn-px--sm" onClick={copyLink}>
+                    📋 CONVIDAR
+                  </button>
+                </div>
               </div>
+              <button className="chat-fab" onClick={() => setChatOpen(true)}>
+                💬<span>CHAT</span>
+                {unread > 0 && <span className="chat-badge">{unread > 9 ? '9+' : unread}</span>}
+              </button>
             </div>
           </div>
 
           {/* 2-col: players + chat */}
-          <div style={{ display:'grid', gridTemplateColumns:'1.2fr 1fr', gap:20, alignItems:'start' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1.2fr 1fr', gap:20, alignItems:'stretch', height:'var(--lobby-panel-h, 460px)' }}>
 
             {/* Players */}
-            <div className="px-frame px-frame--purple" style={{ padding:20, display:'flex', flexDirection:'column', gap:14 }}>
+            <div className="px-frame px-frame--purple" style={{ padding:20, display:'flex', flexDirection:'column', gap:14, minHeight:0 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <div style={{ fontFamily:"'Press Start 2P'", fontSize:11, color:'var(--neon-purple)' }}>
                   &gt; JOGADORES_ {connPl.length}/{maxPl}
@@ -390,7 +405,7 @@
                 </div>
               </div>
 
-              <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:236, overflowY:'auto' }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:8, flex:1, minHeight:0, overflowY:'auto' }}>
                 {players.map((p, idx) => {
                   const av = avatarFor(p, idx);
                   const isMe = p.playerId === myIdRef.current;
@@ -470,28 +485,30 @@
             </div>
 
             {/* Chat */}
-            <div className="px-frame px-frame--cyan" style={{ padding:0, display:'flex', flexDirection:'column' }}>
+            <div className={`px-frame px-frame--cyan chat-panel${chatOpen ? ' is-open' : ''}`} style={{ padding:0, display:'flex', flexDirection:'column', height:'100%', minHeight:0 }}>
               <div style={{ padding:'14px 16px', borderBottom:'2px dashed rgba(0,240,255,0.3)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <div style={{ fontFamily:"'Press Start 2P'", fontSize:11, color:'var(--neon-cyan)' }}>&gt; CHAT_</div>
                 <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)' }}>
                   {messages.filter(m => m.kind === 'chat').length} MSGS
                 </div>
+                <button className="chat-close" onClick={() => setChatOpen(false)} aria-label="Fechar chat">✕</button>
               </div>
 
-              <div ref={chatRef} className="chat-log" style={{ flex:1, minHeight:260, maxHeight:360 }}>
-                {messages.map((m, i) => (
-                  m.kind === 'system' ? (
+              <div ref={chatRef} className="chat-log" style={{ flex:1, minHeight:0 }}>
+                {messages.map((m, i) => {
+                  const isMe = m.kind !== 'system' && m.author === myName;
+                  return m.kind === 'system' ? (
                     <div key={i} className="chat-msg">
                       <span className="chat-author" style={{ color:'var(--neon-yellow)' }}>· SYS</span>
                       <span className="chat-text" style={{ color:'var(--neon-yellow)', fontStyle:'italic' }}>{m.text}</span>
                     </div>
                   ) : (
-                    <div key={i} className="chat-msg">
+                    <div key={i} className={isMe ? 'chat-msg chat-msg--mine' : 'chat-msg'}>
                       <span className="chat-author">{m.author}:</span>
                       <span className="chat-text">{m.text}</span>
                     </div>
-                  )
-                ))}
+                  );
+                })}
               </div>
 
               <div className="emoji-row" style={{ padding:'6px 10px', borderTop:'1px dashed rgba(0,240,255,0.2)' }}>
@@ -521,7 +538,70 @@
         <Footer />
         <style>{`
           @media (max-width: 680px) {
-            main > div:nth-child(2) { grid-template-columns: 1fr !important; }
+            /* Tela fixa: sem scroll de página */
+            html, body { height: 100%; overflow: hidden; }
+            #root { height: 100vh; height: 100dvh; overflow: hidden; }
+            .pl-screen { height: 100%; min-height: 0; overflow: hidden; }
+            .px-footer { display: none; }
+
+            /* main preenche o espaço restante e não transborda */
+            main {
+              flex: 1; min-height: 0; overflow: hidden;
+              padding: 16px 12px !important;
+              gap: 12px !important;
+            }
+
+            /* Header: jogo em cima (full width), convidar + chat lado a lado embaixo */
+            .game-info-box { flex: 1 1 100% !important; }
+            .room-row { flex: 1 1 100% !important; }
+            .sala-box  { flex: 1 1 auto !important; }
+
+            /* Botão de abrir (verde, ao lado de convidar) */
+            .chat-fab {
+              position: relative;
+              display: flex; flex-direction: column; align-items: center; justify-content: center;
+              gap: 4px; flex: 0 0 auto; cursor: pointer;
+              padding: 10px 16px; border: none;
+              background: var(--neon-green); color: var(--bg-0);
+              font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 0.1em;
+              box-shadow: 0 0 12px rgba(57,255,122,0.5);
+            }
+            .chat-fab span { font-size: 8px; }
+
+            /* Sinal de mensagens não lidas */
+            .chat-badge {
+              position: absolute; top: -6px; right: -6px;
+              min-width: 18px; height: 18px; padding: 0 4px;
+              display: flex; align-items: center; justify-content: center;
+              background: var(--neon-pink); color: #000; border-radius: 9px;
+              font-family: 'Press Start 2P', monospace; font-size: 8px;
+              box-shadow: 0 0 8px rgba(255,46,136,0.9);
+            }
+
+            /* Área de jogadores ocupa o resto e rola internamente */
+            main > div:nth-child(2) {
+              grid-template-columns: 1fr !important;
+              grid-template-rows: 1fr !important;
+              height: auto !important;
+              flex: 1; min-height: 0;
+            }
+            main > div:nth-child(2) > div.px-frame--purple { height: auto; min-height: 0; }
+
+            /* Chat vira overlay deslizante cobrindo o lobby */
+            .chat-panel {
+              position: fixed; inset: 0; z-index: 8000;
+              width: 100%; height: 100% !important;
+              transform: translateX(100%);
+            }
+            .chat-panel.is-open { transform: translateX(0); }
+
+            /* Botão X de fechar */
+            .chat-close {
+              display: flex; align-items: center; justify-content: center;
+              width: 32px; height: 32px; cursor: pointer;
+              background: transparent; border: 2px solid var(--neon-cyan);
+              color: var(--neon-cyan); font-family: 'Press Start 2P', monospace; font-size: 11px;
+            }
           }
         `}</style>
       </div>
