@@ -115,7 +115,7 @@
 
     // ── Ajuda: abre o manual oficial do Coup ──────────────────────────────────
     document.getElementById('coupHelpBtn')?.addEventListener('click', () => {
-      window.open('https://www.fclar.unesp.br/Home/Biblioteca/jogos-coup-manual.pdf', '_blank');
+      window.GameHelp?.open('coup');
     });
   }
 

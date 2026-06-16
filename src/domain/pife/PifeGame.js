@@ -50,7 +50,7 @@ function initState(players) {
     })),
     hands,
     stock:    deck,
-    discard:  [deck.pop()],
+    discard:  [],
     status:   'playing',
     winner:         null,
     winnerName:     null,
