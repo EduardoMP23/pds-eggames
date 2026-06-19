@@ -166,7 +166,7 @@
   position: absolute; bottom: calc(var(--pf-ch, 117px) * .42);
   width: 46px; height: 46px; border-radius: 50%; cursor: pointer; z-index: 9500;
   background: rgba(58,36,0,.28); border: 1px solid rgba(255,255,255,.4);
-  color: #fff; font-size: 22px; backdrop-filter: blur(6px);
+  color: #fff; font-size: 22px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   display: none; align-items: center; justify-content: center;
   transition: opacity .2s ease, transform .12s ease;
 }

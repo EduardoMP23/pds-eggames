@@ -75,6 +75,7 @@
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.16);
   color: var(--ink);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   transition: transform .12s ease, background .12s ease;
   padding: 0;
@@ -105,6 +106,7 @@
   border: 1px solid rgba(255,255,255,.14);
   border-radius: 999px;
   padding: 6px 14px 6px 7px;
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   position: relative;
   min-width: 0;
@@ -287,7 +289,7 @@
 .uno-root .card.yellow .face { background: var(--c-yellow); } .uno-root .card.yellow .big { color: var(--c-yellow); }
 .uno-root .card.green  .face { background: var(--c-green); }  .uno-root .card.green  .big { color: var(--c-green); }
 .uno-root .card.blue   .face { background: var(--c-blue); }   .uno-root .card.blue   .big { color: var(--c-blue); }
-.uno-root .card.wild   .face { background:
+.uno-root .card.wild   .face { background: #23273a; background:
   conic-gradient(var(--c-red) 0 25%, var(--c-blue) 0 50%, var(--c-yellow) 0 75%, var(--c-green) 0 100%); }
 .uno-root .card.wild .face::before { background: rgba(20,22,34,.92); }
 .uno-root .card.wild .big { color: #fff; -webkit-text-stroke: 0; }
@@ -391,6 +393,7 @@
   border: 1px solid rgba(255,255,255,.22);
   color: var(--ink);
   font-size: 20px;
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   display: none;
   align-items: center;
@@ -429,6 +432,7 @@
   transition: opacity .3s ease, transform .3s ease;
   pointer-events: none;
   z-index: 550;
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   white-space: nowrap;
 }

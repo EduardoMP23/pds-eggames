@@ -6,6 +6,7 @@
 
 /* ── Variables ─────────────────────────────────────────────── */
 :root {
+  color-scheme: dark;
   --neon-pink:   #ff2e88;
   --neon-cyan:   #00f0ff;
   --neon-purple: #b14aed;
