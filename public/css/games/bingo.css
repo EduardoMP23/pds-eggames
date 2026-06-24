@@ -64,6 +64,32 @@
   color: #ff2e88;
 }
 
+.bingo-mode-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 46, 136, 0.5);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.bingo-survivors {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #39ff7a;
+  white-space: nowrap;
+}
+
+/* Cartela esmaecida quando o jogador é eliminado (modo Azarão) */
+.bingo-card--eliminated {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+  pointer-events: none;
+}
+
 /* ── Drawn Numbers Bar ──────────────────────────────────── */
 .bingo-drawn-bar {
   display: flex;

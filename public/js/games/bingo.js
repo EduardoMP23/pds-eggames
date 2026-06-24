@@ -11,6 +11,7 @@
   let _pendingState  = null;       // state queued during checking animation
   let _ballAnimating = false;      // prevents overlapping ball animations
   let _toastTimer    = null;
+  let _wasEliminated = false;      // tracks Azarão elimination transition for toast
 
   // ── Init ───────────────────────────────────────────────────────────────────
   function init(el, myPlayerId, myPlayerName, isHost) {
@@ -24,8 +25,10 @@
           <div class="bingo-header-left">
             <button class="bingo-btn-back" id="bingoBtnBack" title="Voltar ao lobby">&#8592;</button>
             <span class="bingo-title">BINGO</span>
+            <span class="bingo-mode-label" id="bingoModeLabel"></span>
           </div>
           <div class="bingo-header-right">
+            <span class="bingo-survivors" id="bingoSurvivors" style="display:none"></span>
             <span class="bingo-pool-counter" id="bingoPoolCounter"></span>
             <button class="bingo-btn-reset" id="bingoBtnReset" title="Reiniciar jogo" style="display:none">&#8635;</button>
           </div>
@@ -142,6 +145,7 @@
 
     card.innerHTML = '';
     card.appendChild(frag);
+    card.classList.toggle('bingo-card--eliminated', !!state.amEliminated);
   }
 
   function _toggleMark(gi, state) {
@@ -173,13 +177,38 @@
   }
 
   // ── Controls ───────────────────────────────────────────────────────────────
+  const MODE_NAMES = {
+    full:     'CARTELA TODA',
+    line:     'LINHA/COLUNA/DIAGONAL',
+    underdog: 'AZARÃO',
+  };
+
   function _updateControls(state) {
     const callBtn   = document.getElementById('bingoBtnCall');
     const resetBtn  = document.getElementById('bingoBtnReset');
     const poolCtr   = document.getElementById('bingoPoolCounter');
+    const modeLabel = document.getElementById('bingoModeLabel');
+    const survEl    = document.getElementById('bingoSurvivors');
+    const mode      = state.mode || 'full';
+
+    if (modeLabel) modeLabel.textContent = MODE_NAMES[mode] || '';
 
     if (callBtn) {
-      callBtn.disabled = state.status !== 'playing';
+      // Azarão é por eliminação automática — sem botão de BINGO.
+      if (mode === 'underdog') {
+        callBtn.style.display = 'none';
+      } else {
+        callBtn.style.display = '';
+        callBtn.disabled = state.status !== 'playing';
+      }
+    }
+    if (survEl) {
+      if (mode === 'underdog' && state.status === 'playing') {
+        survEl.style.display = '';
+        survEl.textContent = `${state.survivors} ${state.survivors === 1 ? 'vivo' : 'vivos'}`;
+      } else {
+        survEl.style.display = 'none';
+      }
     }
     if (resetBtn) {
       resetBtn.style.display = _isHost ? '' : 'none';
@@ -189,6 +218,13 @@
         ? `${state.poolRemaining} restantes`
         : 'Esgotado';
     }
+
+    // Azarão: avisa o jogador na transição para eliminado (o sorteio passa pela
+    // animação da bola, então detectamos aqui, que roda em ambos os caminhos).
+    if (state.amEliminated && !_wasEliminated) {
+      _showToast('Você foi eliminado! Azar... 💀');
+    }
+    _wasEliminated = !!state.amEliminated;
   }
 
   // ── Ball Animation ─────────────────────────────────────────────────────────
@@ -273,6 +309,7 @@
     _pendingState  = null;
     _ballAnimating = false;
     _lastState     = null;
+    _wasEliminated = false;
     if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
   }
 

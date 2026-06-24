@@ -111,8 +111,8 @@ class SocketHandler {
       });
 
       // ── Start game (host only) ────────────────────────────────────────────
-      socket.on('lobby:start', ({ roomId }) => {
-        const result = this._game.startGame(roomId, socket.id);
+      socket.on('lobby:start', ({ roomId, settings }) => {
+        const result = this._game.startGame(roomId, socket.id, settings);
         if (result.error) socket.emit('room:join-error', { message: result.error });
       });
 

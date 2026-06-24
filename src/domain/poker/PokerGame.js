@@ -3,6 +3,16 @@
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 9;
 const START_CHIPS = 1000;
+const MIN_START_CHIPS = 100;
+const MAX_START_CHIPS = 1_000_000;
+
+// Sanitiza o valor inicial da banca vindo das configs do host (cliente não confiável):
+// clampeia ao intervalo permitido e cai para o padrão se não for um número válido.
+function clampStartChips(v) {
+  const n = Math.floor(Number(v));
+  if (!Number.isFinite(n)) return START_CHIPS;
+  return Math.min(MAX_START_CHIPS, Math.max(MIN_START_CHIPS, n));
+}
 
 const SUITS = ['s', 'h', 'd', 'c'];
 const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
@@ -264,14 +274,15 @@ function dealHand(state) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-function initState(players) {
+function initState(players, settings = {}) {
+  const startChips = clampStartChips(settings?.startChips ?? START_CHIPS);
   const state = {
     deck: [],
     communityCards: [],
     players: players.map(({ playerId, playerName }) => ({
       playerId,
       playerName,
-      chips:      START_CHIPS,
+      chips:      startChips,
       hand:       [],
       bet:        0,
       totalBet:   0,

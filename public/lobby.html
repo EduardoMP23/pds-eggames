@@ -65,6 +65,68 @@
       color: var(--neon-cyan); flex: 1;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
+
+    /* ── Engrenagem de configurações (host) ── */
+    .settings-gear {
+      width: 30px; height: 30px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 2px solid var(--neon-green);
+      color: var(--neon-green); font-size: 16px; line-height: 1; cursor: pointer;
+      transition: transform 0.1s, background 0.1s, box-shadow 0.1s;
+    }
+    .settings-gear:hover {
+      background: rgba(57,255,122,0.12);
+      box-shadow: 0 0 12px rgba(57,255,122,0.5);
+    }
+    .settings-gear:active { transform: scale(0.92) rotate(30deg); }
+
+    /* ── Modal de pré-configurações ── */
+    .settings-overlay {
+      position: fixed; inset: 0; z-index: 9200;
+      background: rgba(0,0,0,0.9);
+      display: flex; align-items: center; justify-content: center;
+      animation: enter-bottom 0.2s steps(4);
+    }
+    .settings-box {
+      display: flex; flex-direction: column; gap: 18px;
+      padding: 24px; width: min(360px, 92vw); text-align: center;
+    }
+    .settings-title {
+      font-family: 'Press Start 2P', monospace; font-size: 12px;
+      color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green);
+    }
+    .settings-fields { display: flex; flex-direction: column; gap: 16px; }
+    .settings-field { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+    .settings-field__label {
+      font-family: 'Press Start 2P', monospace; font-size: 9px;
+      color: var(--ink-1); letter-spacing: 0.05em;
+    }
+    .settings-input {
+      font-family: 'VT323', monospace; font-size: 1.3rem;
+      color: var(--neon-green); background: rgba(0,0,0,0.55);
+      border: none; box-shadow: inset 0 0 0 2px rgba(57,255,122,0.4);
+      padding: 8px 12px; outline: none; width: 100%;
+    }
+    .settings-input:focus { box-shadow: inset 0 0 0 2px var(--neon-green); }
+    .settings-field__hint {
+      font-family: 'VT323', monospace; font-size: 0.95rem; color: var(--ink-2);
+    }
+    .settings-options { display: flex; flex-direction: column; gap: 8px; }
+    .settings-option {
+      font-family: 'Press Start 2P', monospace; font-size: 9px; line-height: 1.4;
+      text-align: left; cursor: pointer; padding: 10px 12px;
+      color: var(--ink-1); background: rgba(0,0,0,0.45);
+      border: none; box-shadow: inset 0 0 0 2px rgba(57,255,122,0.25);
+      transition: color 0.1s, box-shadow 0.1s, background 0.1s;
+    }
+    .settings-option:hover { color: var(--ink-0); box-shadow: inset 0 0 0 2px rgba(57,255,122,0.5); }
+    .settings-option--active {
+      color: var(--neon-green); background: rgba(57,255,122,0.12);
+      box-shadow: inset 0 0 0 2px var(--neon-green), 0 0 10px rgba(57,255,122,0.35);
+    }
+    .settings-note {
+      font-family: 'VT323', monospace; font-size: 1rem; color: var(--ink-2); line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -100,6 +162,21 @@
     hive:      { title: 'HIVE',       accent: '#ff7a1f', frameClass: 'px-frame--green'  },
     pife:      { title: 'PIFE',       accent: '#f7b500', frameClass: 'px-frame--yellow' },
     pioramigo: { title: 'PIOR AMIGO', accent: '#b14aed', frameClass: 'px-frame--pink'   },
+    poker:     { title: 'POKER',      accent: '#39ff7a', frameClass: 'px-frame--green',
+      settings: [
+        { key: 'startChips', label: 'Valor inicial da banca', type: 'number',
+          default: 1000, min: 100, max: 1000000, step: 100 },
+      ],
+    },
+    bingo:     { title: 'BINGO',      accent: '#ff2e88', frameClass: 'px-frame--pink',
+      settings: [
+        { key: 'mode', label: 'Modo de jogo', type: 'select', default: 'full', options: [
+          { value: 'full',     label: 'Cartela toda',              hint: 'Vence quem completar a cartela inteira.' },
+          { value: 'line',     label: 'Linha / Coluna / Diagonal', hint: 'Vence ao fechar uma linha, coluna ou diagonal.' },
+          { value: 'underdog', label: 'Azarão',                    hint: 'Saiu seu número, você é eliminado. Vence o último.' },
+        ] },
+      ],
+    },
   };
   const EMOJI_LIST = ['👋','🔥','😈','🎲','💀','⚡','🛸','👑'];
 
@@ -178,6 +255,63 @@
     );
   }
 
+  /* ── Pré-configurações do jogo (host) ──────────────────────────── */
+  function GameSettingsModal({ schema, values, onChange, onClose }) {
+    return (
+      <div className="settings-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="settings-box px-frame px-frame--green">
+          <div className="settings-title">⚙ CONFIGURAÇÕES</div>
+          <div className="settings-fields">
+            {schema.map(field => (
+              <label key={field.key} className="settings-field">
+                <span className="settings-field__label">{field.label}</span>
+                {field.type === 'number' && (
+                  <input
+                    type="number"
+                    className="settings-input"
+                    value={values[field.key] ?? field.default}
+                    min={field.min}
+                    max={field.max}
+                    step={field.step}
+                    onChange={e => onChange(field.key, e.target.value)}
+                  />
+                )}
+                {field.type === 'number' && (field.min !== undefined || field.max !== undefined) && (
+                  <span className="settings-field__hint">
+                    mín {field.min} · máx {field.max}
+                  </span>
+                )}
+                {field.type === 'select' && (() => {
+                  const current = values[field.key] ?? field.default;
+                  const active  = (field.options || []).find(o => o.value === current);
+                  return (
+                    <React.Fragment>
+                      <div className="settings-options">
+                        {(field.options || []).map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className={'settings-option' + (current === opt.value ? ' settings-option--active' : '')}
+                            onClick={() => onChange(field.key, opt.value)}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      {active?.hint && <span className="settings-field__hint">{active.hint}</span>}
+                    </React.Fragment>
+                  );
+                })()}
+              </label>
+            ))}
+          </div>
+          <button className="btn-px btn-px--green" onClick={onClose}>✓ SALVAR</button>
+          <div className="settings-note">Avise o grupo sobre as mudanças antes de iniciar.</div>
+        </div>
+      </div>
+    );
+  }
+
   /* ══════════════════════════════════════════════════════════════
      LOBBY SCREEN
   ══════════════════════════════════════════════════════════════ */
@@ -222,6 +356,8 @@
     const [hostId,   setHostId]   = useState(null);
     const [chatOpen, setChatOpen] = useState(false);
     const [unread,   setUnread]   = useState(0);
+    const [showSettings, setShowSettings] = useState(false);
+    const [settings,     setSettings]     = useState({});
 
     useEffect(() => {
       if (!myName) {
@@ -309,17 +445,28 @@
       if (text === undefined) setDraft('');
     };
 
-    const startGame = () => socketRef.current?.emit('lobby:start', { roomId });
+    const startGame = () => socketRef.current?.emit('lobby:start', { roomId, settings });
 
     const copyLink = () => setShowInvite(true);
 
     const game    = gameData ? (GAME_META[gameData.gameId] || { title: (gameData.gameId || '').toUpperCase(), accent: 'var(--neon-pink)', frameClass: 'px-frame--pink' }) : null;
+    const settingsSchema = game?.settings || [];
     const maxPl   = gameData?.maxPlayers || 6;
     const connPl  = players.filter(p => p.connected !== false);
     const minPl   = gameData?.minPlayers || 2;
     const nonHostPl = connPl.filter(p => p.playerId !== hostId);
     const allReady  = connPl.length >= minPl && nonHostPl.every(p => p.ready);
     const canStart  = isHost && allReady;
+
+    // Inicializa as configs com os defaults do esquema do jogo selecionado.
+    useEffect(() => {
+      if (!settingsSchema.length) return;
+      setSettings(prev => {
+        const next = { ...prev };
+        for (const f of settingsSchema) if (next[f.key] === undefined) next[f.key] = f.default;
+        return next;
+      });
+    }, [gameData?.gameId]);
 
     function avatarFor(p, idx) {
       return {
@@ -336,6 +483,15 @@
     return (
       <div className="pl-screen enter-bottom">
         {showInvite && <InviteModal roomId={roomId} onClose={() => setShowInvite(false)} />}
+
+        {showSettings && (
+          <GameSettingsModal
+            schema={settingsSchema}
+            values={settings}
+            onChange={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
 
         {showAdultModal && (
           <div className="adult-overlay">
@@ -370,8 +526,20 @@
                   <div style={{ fontFamily:"'Press Start 2P'", fontSize:8, color:'var(--ink-2)', letterSpacing:'0.1em' }}>JOGO SELECIONADO</div>
                   <div style={{ fontFamily:"'Press Start 2P'", fontSize:18, color:game.accent, textShadow:`0 0 10px ${game.accent}`, marginTop:6 }}>{game.title}</div>
                 </div>
-                <div style={{ marginLeft:'auto', fontFamily:"'VT323'", fontSize:18, color:'var(--ink-1)' }}>
-                  {gameData?.minPlayers}–{gameData?.maxPlayers} jogadores
+                <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:10 }}>
+                  <div style={{ fontFamily:"'VT323'", fontSize:18, color:'var(--ink-1)' }}>
+                    {gameData?.minPlayers}–{gameData?.maxPlayers} jogadores
+                  </div>
+                  {isHost && settingsSchema.length > 0 && (
+                    <button
+                      className="settings-gear"
+                      title="Configurações do jogo"
+                      aria-label="Configurações do jogo"
+                      onClick={() => setShowSettings(true)}
+                    >
+                      ⚙
+                    </button>
+                  )}
                 </div>
               </div>
             )}

@@ -47,7 +47,7 @@ class GameService {
 
   // ── Use case: start a game ──────────────────────────────────────────────────
 
-  startGame(roomId, hostSocketId) {
+  startGame(roomId, hostSocketId, settings) {
     const playerInfo = this._repo.getPlayerInfo(hostSocketId);
     if (!playerInfo) return { error: 'Player not found' };
 
@@ -68,8 +68,12 @@ class GameService {
       return { error: 'Nem todos os jogadores estão prontos' };
     }
 
+    // Pré-configurações escolhidas pelo host (ex.: valor inicial da banca no Poker).
+    // Mantidas em memória na sala para que o reset reuse a mesma config.
+    room.settings = settings || room.settings || {};
     room.gameState = Game.initState(
-      connected.map(p => ({ playerId: p.playerId, playerName: p.playerName, avatar: p.avatar || null, color: p.color || null }))
+      connected.map(p => ({ playerId: p.playerId, playerName: p.playerName, avatar: p.avatar || null, color: p.color || null })),
+      room.settings
     );
     room.status = 'playing';
 
@@ -98,7 +102,8 @@ class GameService {
 
       const connected = room.players.filter(p => p.connected);
       room.gameState = Game.initState(
-        connected.map(p => ({ playerId: p.playerId, playerName: p.playerName, avatar: p.avatar || null, color: p.color || null }))
+        connected.map(p => ({ playerId: p.playerId, playerName: p.playerName, avatar: p.avatar || null, color: p.color || null })),
+        room.settings || {}
       );
       room.status = 'playing';
       room.players.forEach(p => { p.ready = false; });
